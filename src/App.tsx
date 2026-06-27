@@ -153,8 +153,21 @@ export default function App() {
   // Find label for active month tab
   const activeMonthLabel = React.useMemo(() => {
     if (state.activeMonth === 'all') return 'All Months';
+    if (state.activeMonth === 'undated') return 'Undated';
     const found = state.monthBuckets.find(m => m.key === state.activeMonth);
-    return found ? found.label : state.activeMonth;
+    if (found) return found.label;
+
+    // Fallback format parser for YYYY-MM
+    const match = state.activeMonth.match(/^(\d{4})-(\d{2})$/);
+    if (match) {
+      const year = match[1];
+      const monthNum = parseInt(match[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      if (monthNum >= 1 && monthNum <= 12) {
+        return `${months[monthNum - 1]} ${year}`;
+      }
+    }
+    return state.activeMonth;
   }, [state.activeMonth, state.monthBuckets]);
 
   // Compute unreviewed transactions

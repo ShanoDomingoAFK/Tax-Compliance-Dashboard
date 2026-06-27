@@ -63,18 +63,16 @@ export default function Sidebar({
       </button>
 
       {/* Brand Header */}
-      <div className={`p-5 border-b border-slate-100 shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/10 shrink-0">
-          <span className="text-white font-black text-lg tracking-tight font-sans">🇵🇭</span>
-        </div>
-        {!isCollapsed && (
-          <div className="overflow-hidden whitespace-nowrap">
-            <h2 className="text-slate-800 font-extrabold text-sm tracking-tight leading-none">
-              PH VAT Compliance
+      <div className={`p-5 h-[72px] border-b border-slate-100 shrink-0 flex items-center justify-center ${isCollapsed ? 'px-2' : 'px-6'}`}>
+        {isCollapsed ? (
+          <span className="text-blue-600 font-black text-base tracking-tight uppercase select-none">
+            Tax
+          </span>
+        ) : (
+          <div className="w-full text-left overflow-hidden">
+            <h2 className="text-slate-800 font-extrabold text-sm tracking-tight leading-snug uppercase">
+              Tax Compliance Dashboard
             </h2>
-            <span className="text-[10px] text-slate-400 font-bold block tracking-wider uppercase font-mono mt-1">
-              Ledger Intelligence
-            </span>
           </div>
         )}
       </div>

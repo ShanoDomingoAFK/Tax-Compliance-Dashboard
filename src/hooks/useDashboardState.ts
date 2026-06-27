@@ -123,8 +123,14 @@ export function useDashboardState() {
   // --- UI Filter & Navigation State ---
   const [activeTab, setActiveTab] = useState<'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters'>('summary');
   const [activeMasterSub, setActiveMasterSub] = useState<'vatCategories' | 'atcRates' | 'suppliers'>('vatCategories');
-  const [activeYear, setActiveYear] = useState<string>('all');
-  const [activeMonth, setActiveMonth] = useState<string>('all');
+  const [activeYear, setActiveYear] = useState<string>(() => {
+    return String(new Date().getFullYear());
+  });
+  const [activeMonth, setActiveMonth] = useState<string>(() => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}`;
+  });
   const [activePurchaseBreakdown, setActivePurchaseBreakdown] = useState<'vat' | 'ewt' | null>(null);
 
   const [workSort, setWorkSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'date', dir: 'asc' });
@@ -341,19 +347,6 @@ export function useDashboardState() {
     });
     return Array.from(map.values()).sort((a, b) => a.order - b.order);
   }, [monthBuckets]);
-
-  // Keep filters in bounds when data changes
-  useEffect(() => {
-    if (activeYear !== 'all' && !yearBuckets.some(y => y.year === activeYear)) {
-      setActiveYear('all');
-    }
-  }, [yearBuckets, activeYear]);
-
-  useEffect(() => {
-    if (activeMonth !== 'all' && !monthBuckets.some(m => m.key === activeMonth)) {
-      setActiveMonth('all');
-    }
-  }, [monthBuckets, activeMonth]);
 
   // Fiscal match checks
   function recordMatchesActiveMonth(row: { date: string }): boolean {

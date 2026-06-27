@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { COMPANY_PROFILE } from '../data/demo';
 import { MonthInfo, YearInfo } from '../types';
-import { Calendar, Building, Database, Activity } from 'lucide-react';
+import { Calendar, Building, Database, Activity, ChevronDown } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
+import MonthYearPicker from './MonthYearPicker';
 
 interface HeaderProps {
   activeMonthLabel: string;
@@ -27,62 +29,61 @@ export default function Header({
   unreviewedCount
 }: HeaderProps) {
 
-  // Dynamic Month Filtering for the Month Dropdown Select
-  const filteredMonths = React.useMemo(() => {
-    return monthBuckets.filter(m => {
-      if (activeYear === 'all') return true;
-      const yr = m.key.split('-')[0];
-      return yr === activeYear || m.key === 'undated';
-    });
-  }, [monthBuckets, activeYear]);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  // Helper to determine the text display in header
+  const getPeriodLabel = () => {
+    if (activeYear === 'all' && activeMonth === 'all') {
+      return 'All Periods Combined';
+    }
+    if (activeYear === 'undated' && activeMonth === 'undated') {
+      return 'Undated Backlogs';
+    }
+    return activeMonthLabel;
+  };
 
   return (
     <div className="bg-white border-b border-slate-200/50 h-[72px] px-8 flex items-center justify-between shrink-0 select-none font-sans antialiased">
       
       {/* Consolidated Reporting Period Selector */}
       <div className="flex items-center gap-5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-500 shadow-sm shrink-0">
-            <Calendar className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block leading-none mb-1">
-              Reporting Period
-            </span>
-            
-            <div className="flex items-center gap-2">
-              {/* Year Select Selector */}
-              <select
-                value={activeYear}
-                onChange={(e) => {
-                  setActiveYear(e.target.value);
-                  setActiveMonth('all'); // reset month when changing year
-                }}
-                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg py-1 px-2.5 text-xs font-bold text-slate-700 outline-none cursor-pointer transition-colors duration-150 shadow-xs focus:border-blue-500"
-              >
-                <option value="all">All Years Combined</option>
-                {yearBuckets.map(y => (
-                  <option key={y.year} value={y.year}>
-                    {y.year === 'undated' ? 'Undated Backlogs' : `${y.year} FY`}
-                  </option>
-                ))}
-              </select>
-
-              {/* Month Select Selector */}
-              <select
-                value={activeMonth}
-                onChange={(e) => setActiveMonth(e.target.value)}
-                className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg py-1 px-2.5 text-xs font-bold text-slate-700 outline-none cursor-pointer transition-colors duration-150 shadow-xs focus:border-blue-500"
-              >
-                <option value="all">🌐 Combined Months View</option>
-                {filteredMonths.map(m => (
-                  <option key={m.key} value={m.key}>
-                    {m.key === 'undated' ? '📝 JE / Adjusting Entries' : m.label}
-                  </option>
-                ))}
-              </select>
+        <div className="relative">
+          <button
+            onClick={() => setIsPickerOpen(!isPickerOpen)}
+            className="flex items-center gap-3.5 hover:bg-slate-50/80 active:bg-slate-100/60 p-2 px-3 -mx-2 rounded-2xl transition-all duration-150 cursor-pointer group text-left outline-none border border-transparent hover:border-slate-100"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100/30 flex items-center justify-center text-blue-600 shadow-sm shrink-0 group-hover:scale-95 transition-transform duration-150">
+              <Calendar className="w-5 h-5" />
             </div>
-          </div>
+            
+            <div className="flex flex-col">
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block leading-none mb-1">
+                Reporting Period
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors duration-150">
+                  {getPeriodLabel()}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-all duration-150 ${isPickerOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+          </button>
+
+          {/* Month-Year Picker Popover */}
+          <AnimatePresence>
+            {isPickerOpen && (
+              <MonthYearPicker
+                isOpen={isPickerOpen}
+                onClose={() => setIsPickerOpen(false)}
+                activeYear={activeYear}
+                setActiveYear={setActiveYear}
+                activeMonth={activeMonth}
+                setActiveMonth={setActiveMonth}
+                monthBuckets={monthBuckets}
+                yearBuckets={yearBuckets}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Counter Badges */}
