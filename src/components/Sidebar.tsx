@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { MonthInfo, YearInfo } from '../types';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -10,22 +9,15 @@ import {
   Download,
   Database,
   Trash2,
-  DatabaseBackup,
   ChevronDown,
   ChevronRight,
-  Sparkles,
-  Layers
+  ChevronLeft,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: 'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters';
   setActiveTab: (val: 'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters') => void;
-  activeYear: string;
-  setActiveYear: (val: string) => void;
-  activeMonth: string;
-  setActiveMonth: (val: string) => void;
-  monthBuckets: MonthInfo[];
-  yearBuckets: YearInfo[];
   onResetDatabase: () => void;
   onLoadDemoData: () => void;
   transactionsCount: number;
@@ -34,281 +26,326 @@ interface SidebarProps {
 export default function Sidebar({
   activeTab,
   setActiveTab,
-  activeYear,
-  setActiveYear,
-  activeMonth,
-  setActiveMonth,
-  monthBuckets,
-  yearBuckets,
   onResetDatabase,
   onLoadDemoData,
   transactionsCount
 }: SidebarProps) {
+  // Collapsible sidebar state (persisted in localStorage)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar_collapsed') === 'true';
+  });
 
-  // Purchase Compliance section expanded state
+  // Disbursement Compliance section expanded state (only relevant when expanded)
   const [purchaseExpanded, setPurchaseExpanded] = useState(true);
 
-  // Group months under active year
-  const filteredMonths = monthBuckets.filter(m => {
-    if (activeYear === 'all') return true;
-    const yr = m.key.split('-')[0];
-    return yr === activeYear || m.key === 'undated';
-  });
+  // Sync state to localStorage
+  const toggleCollapse = () => {
+    const nextVal = !isCollapsed;
+    setIsCollapsed(nextVal);
+    localStorage.setItem('sidebar_collapsed', String(nextVal));
+  };
 
   const isPurchaseActive = activeTab === 'working' || activeTab === 'vat' || activeTab === 'ewt';
 
   return (
-    <div className="w-[300px] bg-slate-950 text-slate-300 flex flex-col h-screen select-none border-r border-slate-900 shrink-0 font-sans antialiased">
-      
+    <div
+      className={`relative h-screen flex flex-col select-none border-r border-slate-200/60 bg-white text-slate-600 shrink-0 font-sans antialiased transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-[76px]' : 'w-[280px]'
+      }`}
+    >
+      {/* Floating Toggle Collapse Button */}
+      <button
+        onClick={toggleCollapse}
+        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        className="absolute top-[22px] -right-3 w-6 h-6 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm z-50 hover:scale-105"
+      >
+        {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+      </button>
+
       {/* Brand Header */}
-      <div className="p-6 border-b border-slate-900/85 shrink-0 bg-slate-950/80 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/10">
-            <span className="text-white font-black text-lg tracking-tight font-sans">🇵🇭</span>
-          </div>
-          <div>
-            <h2 className="text-white font-extrabold text-sm tracking-tight font-sans leading-tight">
+      <div className={`p-5 border-b border-slate-100 shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/10 shrink-0">
+          <span className="text-white font-black text-lg tracking-tight font-sans">🇵🇭</span>
+        </div>
+        {!isCollapsed && (
+          <div className="overflow-hidden whitespace-nowrap">
+            <h2 className="text-slate-800 font-extrabold text-sm tracking-tight leading-none">
               PH VAT Compliance
             </h2>
-            <span className="text-[10px] text-slate-500 font-bold block tracking-wider uppercase font-mono mt-0.5">
-              Ledger Intelligence Portal
+            <span className="text-[10px] text-slate-400 font-bold block tracking-wider uppercase font-mono mt-1">
+              Ledger Intelligence
             </span>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Tabs scroll list */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-slate-900/60 scrollbar-track-transparent">
+      {/* Main Tabs List */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
         
         {/* Core Workspace Section */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3.5 mb-1 block">
-            Workspaces
-          </span>
+        <div className="flex flex-col gap-1">
+          {!isCollapsed && (
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2 block">
+              Workspaces
+            </span>
+          )}
 
-          {/* Compliance Summary Tab */}
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all duration-200 relative cursor-pointer flex items-center gap-3 group ${
-              activeTab === 'summary'
-                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20'
-                : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-            }`}
-          >
-            <LayoutDashboard className={`w-4 h-4 shrink-0 transition-colors ${activeTab === 'summary' ? 'text-white' : 'text-slate-500 group-hover:text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold tracking-wide">Compliance Summary</div>
-              <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'summary' ? 'text-blue-100' : 'text-slate-500'}`}>
-                Vendor aggregated metrics
-              </div>
-            </div>
-            {activeTab === 'summary' && (
-              <div className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-white shadow" />
-            )}
-          </button>
-
-          {/* Sales Transaction Tab */}
-          <button
-            onClick={() => setActiveTab('sales')}
-            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all duration-200 relative cursor-pointer flex items-center gap-3 group ${
-              activeTab === 'sales'
-                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20'
-                : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-            }`}
-          >
-            <TrendingUp className={`w-4 h-4 shrink-0 transition-colors ${activeTab === 'sales' ? 'text-white' : 'text-slate-500 group-hover:text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold tracking-wide">Sales Transaction</div>
-              <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'sales' ? 'text-blue-100' : 'text-slate-500'}`}>
-                Revenue compliance modules
-              </div>
-            </div>
-            {activeTab === 'sales' && (
-              <div className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-white shadow" />
-            )}
-          </button>
-
-          {/* Purchase Compliance Accordion Group */}
-          <div className="mt-2 flex flex-col">
-            <button
-              onClick={() => {
-                setPurchaseExpanded(!purchaseExpanded);
-                // Switch to default working sub-tab if we click and it's not active
-                if (!isPurchaseActive) {
-                  setActiveTab('working');
-                }
-              }}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-between group ${
-                isPurchaseActive
-                  ? 'bg-slate-900/50 text-white font-semibold'
-                  : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingBag className={`w-4 h-4 shrink-0 ${isPurchaseActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-400'}`} />
-                <span className="text-xs tracking-wide">Purchase Compliance</span>
-              </div>
-              {purchaseExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-              )}
-            </button>
-
-            {/* Indented Sub-Tabs Tree */}
-            {purchaseExpanded && (
-              <div className="ml-5 pl-3.5 border-l border-slate-900 mt-1.5 flex flex-col gap-1">
-                {/* 1. Purchase Transactions */}
-                <button
-                  onClick={() => setActiveTab('working')}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2.5 group ${
-                    activeTab === 'working'
-                      ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/10'
-                      : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-200'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
-                  <div className="text-xs">Purchase Transactions</div>
-                </button>
-
-                {/* 2. VAT Balances */}
-                <button
-                  onClick={() => setActiveTab('vat')}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2.5 group ${
-                    activeTab === 'vat'
-                      ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/10'
-                      : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-200'
-                  }`}
-                >
-                  <Scale className="w-3.5 h-3.5 shrink-0" />
-                  <div className="text-xs">VAT Balances</div>
-                </button>
-
-                {/* 3. EWT Balances */}
-                <button
-                  onClick={() => setActiveTab('ewt')}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2.5 group ${
-                    activeTab === 'ewt'
-                      ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/10'
-                      : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-200'
-                  }`}
-                >
-                  <Percent className="w-3.5 h-3.5 shrink-0" />
-                  <div className="text-xs">EWT Balances</div>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* BIR Exports Suite Tab */}
-          <button
-            onClick={() => setActiveTab('bir')}
-            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all duration-200 relative cursor-pointer flex items-center gap-3 mt-1.5 group ${
-              activeTab === 'bir'
-                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20'
-                : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-            }`}
-          >
-            <Download className={`w-4 h-4 shrink-0 transition-colors ${activeTab === 'bir' ? 'text-white' : 'text-slate-500 group-hover:text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold tracking-wide">BIR Exports Suite</div>
-              <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'bir' ? 'text-blue-100' : 'text-slate-500'}`}>
-                SLP, QAP and books export
-              </div>
-            </div>
-            {activeTab === 'bir' && (
-              <div className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-white shadow" />
-            )}
-          </button>
-
-          {/* Reference Master Data Tab */}
-          <button
-            onClick={() => setActiveTab('masters')}
-            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all duration-200 relative cursor-pointer flex items-center gap-3 group ${
-              activeTab === 'masters'
-                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20'
-                : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-            }`}
-          >
-            <Database className={`w-4 h-4 shrink-0 transition-colors ${activeTab === 'masters' ? 'text-white' : 'text-slate-500 group-hover:text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold tracking-wide">Reference Master Data</div>
-              <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'masters' ? 'text-blue-100' : 'text-slate-500'}`}>
-                ATC, suppliers & VAT categories
-              </div>
-            </div>
-            {activeTab === 'masters' && (
-              <div className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-white shadow" />
-            )}
-          </button>
-        </div>
-
-        {/* Periods Grouping Sidebar Controllers */}
-        <div className="border-t border-slate-900 pt-5 flex flex-col gap-3">
-          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-3.5 block">
-            Fiscal Period Filter
-          </span>
-
-          {/* Year selector */}
-          <div className="px-1.5">
-            <select
-              value={activeYear}
-              onChange={(e) => {
-                setActiveYear(e.target.value);
-                setActiveMonth('all'); // reset month when changing year
-              }}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 font-bold outline-none cursor-pointer focus:border-blue-500/80 hover:bg-slate-900/80 transition-colors duration-150"
-            >
-              <option value="all">All Years Combined</option>
-              {yearBuckets.map(y => (
-                <option key={y.year} value={y.year}>{y.year === 'undated' ? 'Undated / Backlogs' : `${y.year} FY`}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Month Buckets Grid */}
-          <div className="flex flex-col gap-1 px-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-900/60">
-            <button
-              onClick={() => setActiveMonth('all')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 font-semibold cursor-pointer ${
-                activeMonth === 'all'
-                  ? 'bg-slate-900 text-white font-bold border-l-2 border-blue-500 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/40'
-              }`}
-            >
-              🌐 Combined Months View
-            </button>
-            {filteredMonths.map(m => (
+          {/* Expanded View with Hierarchical Accordion */}
+          {!isCollapsed ? (
+            <>
+              {/* Compliance Summary Tab */}
               <button
-                key={m.key}
-                onClick={() => setActiveMonth(m.key)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 font-semibold flex justify-between items-center cursor-pointer ${
-                  activeMonth === m.key
-                    ? 'bg-slate-900 text-white font-bold border-l-2 border-blue-500 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/40'
+                onClick={() => setActiveTab('summary')}
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
+                  activeTab === 'summary'
+                    ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/10'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                <span>{m.label}</span>
-                {m.key === 'undated' && (
-                  <span className="px-1.5 py-0.5 text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded font-bold font-mono">
-                    JE/AJE
-                  </span>
-                )}
+                <LayoutDashboard className={`w-4 h-4 shrink-0 ${activeTab === 'summary' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-xs font-semibold tracking-wide">Compliance Summary</div>
+                  <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'summary' ? 'text-blue-100' : 'text-slate-400'}`}>
+                    Vendor aggregated metrics
+                  </div>
+                </div>
               </button>
-            ))}
-          </div>
+
+              {/* Revenue Compliance Tab */}
+              <button
+                onClick={() => setActiveTab('sales')}
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
+                  activeTab === 'sales'
+                    ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/10'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <TrendingUp className={`w-4 h-4 shrink-0 ${activeTab === 'sales' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-xs font-semibold tracking-wide">Revenue Compliance</div>
+                  <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'sales' ? 'text-blue-100' : 'text-slate-400'}`}>
+                    Revenue compliance modules
+                  </div>
+                </div>
+              </button>
+
+              {/* Disbursement Compliance Accordion Header */}
+              <div className="flex flex-col">
+                <button
+                  onClick={() => {
+                    setPurchaseExpanded(!purchaseExpanded);
+                    if (!isPurchaseActive) {
+                      setActiveTab('working');
+                    }
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-between group ${
+                    isPurchaseActive
+                      ? 'bg-slate-50 text-slate-800 font-semibold'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <ShoppingBag className={`w-4 h-4 shrink-0 ${isPurchaseActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                    <span className="text-xs font-semibold tracking-wide">Disbursement Compliance</span>
+                  </div>
+                  {purchaseExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+
+                {/* Nested Sub-Tabs Tree */}
+                {purchaseExpanded && (
+                  <div className="ml-5 pl-3 border-l border-slate-100 mt-1 flex flex-col gap-1">
+                    {/* Disbursement Transactions */}
+                    <button
+                      onClick={() => setActiveTab('working')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'working'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">Disbursement Transactions</span>
+                    </button>
+
+                    {/* Input VAT Balances */}
+                    <button
+                      onClick={() => setActiveTab('vat')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'vat'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <Scale className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">Input VAT Balances</span>
+                    </button>
+
+                    {/* EWT Balances */}
+                    <button
+                      onClick={() => setActiveTab('ewt')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'ewt'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <Percent className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">EWT Balances</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* BIR Exports Suite Tab */}
+              <button
+                onClick={() => setActiveTab('bir')}
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
+                  activeTab === 'bir'
+                    ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/10'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <Download className={`w-4 h-4 shrink-0 ${activeTab === 'bir' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-xs font-semibold tracking-wide">BIR Exports Suite</div>
+                  <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'bir' ? 'text-blue-100' : 'text-slate-400'}`}>
+                    SLP, QAP and books export
+                  </div>
+                </div>
+              </button>
+
+              {/* Reference Master Data Tab */}
+              <button
+                onClick={() => setActiveTab('masters')}
+                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
+                  activeTab === 'masters'
+                    ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/10'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <Database className={`w-4 h-4 shrink-0 ${activeTab === 'masters' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-xs font-semibold tracking-wide">Reference Master Data</div>
+                  <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'masters' ? 'text-blue-100' : 'text-slate-400'}`}>
+                    ATC, suppliers & VAT categories
+                  </div>
+                </div>
+              </button>
+            </>
+          ) : (
+            /* Collapsed Icons Only Grid (With Tooltips) */
+            <div className="flex flex-col gap-2.5 items-center">
+              {/* Compliance Summary */}
+              <button
+                onClick={() => setActiveTab('summary')}
+                title="Compliance Summary"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'summary'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </button>
+
+              {/* Revenue Compliance */}
+              <button
+                onClick={() => setActiveTab('sales')}
+                title="Revenue Compliance (Blank / Planned)"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'sales'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+              </button>
+
+              {/* Disbursement Transactions */}
+              <button
+                onClick={() => setActiveTab('working')}
+                title="Disbursement Compliance: Transactions"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'working'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </button>
+
+              {/* Input VAT Balances */}
+              <button
+                onClick={() => setActiveTab('vat')}
+                title="Disbursement Compliance: Input VAT Balances"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'vat'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Scale className="w-4 h-4" />
+              </button>
+
+              {/* EWT Balances */}
+              <button
+                onClick={() => setActiveTab('ewt')}
+                title="Disbursement Compliance: EWT Balances"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'ewt'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Percent className="w-4 h-4" />
+              </button>
+
+              {/* BIR Exports Suite */}
+              <button
+                onClick={() => setActiveTab('bir')}
+                title="BIR Exports Suite"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'bir'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+
+              {/* Reference Master Data */}
+              <button
+                onClick={() => setActiveTab('masters')}
+                title="Reference Master Data"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                  activeTab === 'masters'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Database className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Database utilities footer */}
-      <div className="p-4 border-t border-slate-900 shrink-0 flex flex-col gap-2.5 bg-slate-950 select-none">
+      {/* Database Utilities Footer */}
+      <div className="p-4 border-t border-slate-100 shrink-0 flex flex-col gap-2 bg-slate-50/50 select-none">
         {transactionsCount === 0 ? (
           <button
             onClick={onLoadDemoData}
-            className="w-full py-2.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 hover:border-blue-500/40 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+            title="Populate Demo Datasets"
+            className={`w-full bg-blue-50 border border-blue-100 hover:bg-blue-100/60 text-blue-600 font-bold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm ${
+              isCollapsed ? 'py-2.5 px-0' : 'py-2 px-3 text-xs'
+            }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Populate Demo Datasets
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            {!isCollapsed && "Populate Demo"}
           </button>
         ) : (
           <button
@@ -317,17 +354,22 @@ export default function Sidebar({
                 onResetDatabase();
               }
             }}
-            className="w-full py-2.5 bg-red-600/5 text-red-400/90 border border-red-500/10 hover:bg-red-600/15 hover:text-red-400 text-xs font-semibold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+            title="Wipe Database Cache"
+            className={`w-full bg-red-50 border border-red-100 hover:bg-red-100/60 text-red-600 font-semibold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm ${
+              isCollapsed ? 'py-2.5 px-0' : 'py-2 px-3 text-xs'
+            }`}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            Wipe Database Cache
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            {!isCollapsed && "Wipe Cache"}
           </button>
         )}
-        <div className="text-[9px] text-slate-700 text-center font-bold tracking-wider font-mono uppercase mt-0.5">
-          v1.4.0 • SANDBOX PERSISTENCE
-        </div>
+        
+        {!isCollapsed && (
+          <div className="text-[9px] text-slate-400 text-center font-bold tracking-wider font-mono uppercase mt-1">
+            v1.4.0 • OFFLINE SANDBOX
+          </div>
+        )}
       </div>
-
     </div>
   );
 }

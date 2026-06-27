@@ -34,7 +34,7 @@ export default function VatEwtSheet({
 }: VatEwtSheetProps) {
 
   const title = type.toUpperCase();
-  const label = type === 'vat' ? 'VAT Balances' : 'EWT Balances';
+  const label = type === 'vat' ? 'Input VAT Balances' : 'EWT Balances';
 
   // Summaries
   const purchaseSum = useMemo(() => {
@@ -71,7 +71,7 @@ export default function VatEwtSheet({
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Purchase {title}</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Disbursement {title}</span>
           <div className="text-base font-bold font-mono tracking-tight text-slate-900 truncate">
             {pesoText(purchaseSum)}
           </div>
@@ -166,7 +166,7 @@ export default function VatEwtSheet({
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider select-none">
                 <th className="py-3 px-4 text-left font-semibold" style={{ width: '15%' }}>CV Number</th>
                 <th className="py-3 px-4 text-left font-semibold" style={{ width: '22%' }}>Supplier / voucher</th>
-                <th className="py-3 px-4 text-right font-semibold" style={{ width: '15%' }}>Purchase Amount</th>
+                <th className="py-3 px-4 text-right font-semibold" style={{ width: '15%' }}>Disbursement Amount</th>
                 <th className="py-3 px-4 text-right font-semibold" style={{ width: '15%' }}>Uploaded Balance</th>
                 <th className="py-3 px-4 text-right font-semibold" style={{ width: '15%' }}>Difference</th>
                 <th className="py-3 px-4 text-center font-semibold" style={{ width: '12%' }}>Recon Status</th>

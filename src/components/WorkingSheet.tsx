@@ -387,14 +387,14 @@ export default function WorkingSheet({
           </span>
         </div>
 
-        {/* Purchase VAT Card */}
+        {/* Disbursement VAT Card */}
         <div
           onClick={() => setActivePurchaseBreakdown(activePurchaseBreakdown === 'vat' ? null : 'vat')}
           className={`border rounded-2xl p-4 shadow-sm flex flex-col justify-between cursor-pointer transition-all ${
             activePurchaseBreakdown === 'vat' ? 'ring-2 ring-blue-500 bg-blue-50/10 border-blue-500' : 'bg-white border-slate-200'
           }`}
         >
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Purchase VAT</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Disbursement VAT</span>
           <div className="text-base font-bold font-mono tracking-tight text-slate-900 truncate">
             {pesoText(bookVatTotal)}
           </div>
@@ -403,14 +403,14 @@ export default function WorkingSheet({
           </span>
         </div>
 
-        {/* Purchase EWT Card */}
+        {/* Disbursement EWT Card */}
         <div
           onClick={() => setActivePurchaseBreakdown(activePurchaseBreakdown === 'ewt' ? null : 'ewt')}
           className={`border rounded-2xl p-4 shadow-sm flex flex-col justify-between cursor-pointer transition-all ${
             activePurchaseBreakdown === 'ewt' ? 'ring-2 ring-blue-500 bg-blue-50/10 border-blue-500' : 'bg-white border-slate-200'
           }`}
         >
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Purchase EWT</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Disbursement EWT</span>
           <div className="text-base font-bold font-mono tracking-tight text-slate-900 truncate">
             {pesoText(bookEwtTotal)}
           </div>
@@ -446,7 +446,7 @@ export default function WorkingSheet({
       {activePurchaseBreakdown === 'vat' && (
         <div className="bg-white border border-blue-200 rounded-2xl p-4 shadow-md transition-all">
           <div className="mb-2">
-            <h4 className="text-sm font-bold text-slate-900">Purchase VAT by VAT Category Code</h4>
+            <h4 className="text-sm font-bold text-slate-900">Disbursement VAT by VAT Category Code</h4>
             <p className="text-xs text-slate-500">Calculated sum based on transactions for the selected period.</p>
           </div>
           <div className="overflow-x-auto">
@@ -478,7 +478,7 @@ export default function WorkingSheet({
       {activePurchaseBreakdown === 'ewt' && (
         <div className="bg-white border border-blue-200 rounded-2xl p-4 shadow-md transition-all">
           <div className="mb-2">
-            <h4 className="text-sm font-bold text-slate-900">Purchase EWT by ATC Code</h4>
+            <h4 className="text-sm font-bold text-slate-900">Disbursement EWT by ATC Code</h4>
             <p className="text-xs text-slate-500">ATC Withholding EWT summaries for the selected period.</p>
           </div>
           <div className="overflow-x-auto">
@@ -533,7 +533,7 @@ export default function WorkingSheet({
       {/* XLSX IMPORT PANEL */}
       {showImport && (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-inner">
-          <h3 className="font-bold text-slate-800 text-sm mb-2">Import XLSX for Purchase Transactions</h3>
+          <h3 className="font-bold text-slate-800 text-sm mb-2">Import XLSX for Disbursement Transactions</h3>
           <p className="text-xs text-slate-500 mb-3 leading-relaxed">
             <strong>QuickBooks reports are detected automatically.</strong> You can drag & drop or upload the raw QuickBooks <em>Transaction Detail by Account</em> (expense list), <em>VAT Summary / Tax Detail Report</em>, or <em>Withholding Transaction Report</em>. The system will map headers automatically!
           </p>
@@ -546,8 +546,8 @@ export default function WorkingSheet({
                 onChange={(e: any) => setImportType(e.target.value)}
                 className="p-2 border border-slate-200 rounded-lg outline-none bg-white text-xs"
               >
-                <option value="book">Purchase transactions / verification sheet</option>
-                <option value="vatLedger">VAT Balances</option>
+                <option value="book">Disbursement transactions / verification sheet</option>
+                <option value="vatLedger">Input VAT Balances</option>
                 <option value="ewtLedger">EWT Balances</option>
                 <option value="vatCategoryMaster">VAT Categories</option>
                 <option value="atcMaster">ATC Master / Database EWT Rates</option>
@@ -622,7 +622,7 @@ export default function WorkingSheet({
       {/* ADD TRANSACTION PANEL */}
       {showAdd && (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-inner">
-          <h3 className="font-bold text-slate-800 text-sm mb-3">Add Purchase Transaction Manually</h3>
+          <h3 className="font-bold text-slate-800 text-sm mb-3">Add Disbursement Transaction Manually</h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <div className="flex flex-col gap-1">
@@ -848,12 +848,12 @@ export default function WorkingSheet({
                 </th>
                 <th className="py-3 px-4 text-right font-semibold">
                   <button onClick={() => handleSort('vat')} className="flex items-center justify-end text-slate-700 w-full">
-                    Purchase VAT {renderSortArrow('vat')}
+                    Disbursement VAT {renderSortArrow('vat')}
                   </button>
                 </th>
                 <th className="py-3 px-4 text-right font-semibold">
                   <button onClick={() => handleSort('ewt')} className="flex items-center justify-end text-slate-700 w-full">
-                    Purchase EWT {renderSortArrow('ewt')}
+                    Disbursement EWT {renderSortArrow('ewt')}
                   </button>
                 </th>
                 <th className="py-3 px-4 text-right font-semibold">

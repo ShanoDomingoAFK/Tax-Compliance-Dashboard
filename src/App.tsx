@@ -175,12 +175,6 @@ export default function App() {
       <Sidebar
         activeTab={state.activeTab}
         setActiveTab={state.setActiveTab}
-        activeYear={state.activeYear}
-        setActiveYear={state.setActiveYear}
-        activeMonth={state.activeMonth}
-        setActiveMonth={state.setActiveMonth}
-        monthBuckets={state.monthBuckets}
-        yearBuckets={state.yearBuckets}
         onResetDatabase={handleResetDatabase}
         onLoadDemoData={handleLoadDemoData}
         transactionsCount={state.transactions.length}
@@ -193,7 +187,11 @@ export default function App() {
         <Header
           activeMonthLabel={activeMonthLabel}
           activeYear={state.activeYear}
+          setActiveYear={state.setActiveYear}
           activeMonth={state.activeMonth}
+          setActiveMonth={state.setActiveMonth}
+          monthBuckets={state.monthBuckets}
+          yearBuckets={state.yearBuckets}
           transactionsCount={state.transactions.length}
           unreviewedCount={unreviewedCount}
         />
@@ -225,7 +223,7 @@ export default function App() {
               <div className="w-16 h-16 rounded-2xl bg-blue-50/50 border border-blue-100/40 flex items-center justify-center mb-6 text-blue-600 animate-pulse">
                 <TrendingUp className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">Sales Compliance Module</h3>
+              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">Revenue Compliance Module</h3>
               <p className="text-xs text-slate-400 max-w-sm mt-3 leading-relaxed font-medium">
                 This workspace is reserved for customer registers, output VAT reports, sales invoices, and official receipts matching. Features are scheduled to be developed in the next iteration.
               </p>

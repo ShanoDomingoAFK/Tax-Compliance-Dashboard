@@ -420,7 +420,7 @@ export default function CVReviewModal({
                       <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Computed Amounts</span>
                       
                       <div className="flex flex-col gap-1">
-                        <label className="font-bold text-blue-500 text-[9px]">Base Purchase Amount</label>
+                        <label className="font-bold text-blue-500 text-[9px]">Base Disbursement Amount</label>
                         <input
                           type="text"
                           value={pesoText(t.amount)}

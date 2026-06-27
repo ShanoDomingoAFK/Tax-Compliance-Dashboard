@@ -814,7 +814,7 @@ export function useDashboardState() {
       return {
         error: true,
         type,
-        message: `This looks like a QuickBooks ${type === 'book' ? 'Purchase Transactions' : type === 'vatLedger' ? 'VAT Balances' : 'EWT Balances'} file, but the column header row (with Date, No., Name…) could not be found. Export the standard QuickBooks report without deleting the header rows.`
+        message: `This looks like a QuickBooks ${type === 'book' ? 'Disbursement Transactions' : type === 'vatLedger' ? 'Input VAT Balances' : 'EWT Balances'} file, but the column header row (with Date, No., Name…) could not be found. Export the standard QuickBooks report without deleting the header rows.`
       };
     }
 
@@ -841,7 +841,7 @@ export function useDashboardState() {
       return {
         error: true,
         type,
-        message: `This looks like a QuickBooks ${type === 'book' ? 'Purchase Transactions' : type === 'vatLedger' ? 'VAT Balances' : 'EWT Balances'} file, but these required columns were not found: ${missing.join(', ')}. Export the standard QuickBooks report without removing or renaming columns.`
+        message: `This looks like a QuickBooks ${type === 'book' ? 'Disbursement Transactions' : type === 'vatLedger' ? 'Input VAT Balances' : 'EWT Balances'} file, but these required columns were not found: ${missing.join(', ')}. Export the standard QuickBooks report without removing or renaming columns.`
       };
     }
 
@@ -914,7 +914,7 @@ export function useDashboardState() {
       return {
         error: true,
         type,
-        message: `Detected a QuickBooks ${type === 'book' ? 'Purchase Transactions' : type === 'vatLedger' ? 'VAT Balances' : 'EWT Balances'} file, but found no valid data lines to import.`
+        message: `Detected a QuickBooks ${type === 'book' ? 'Disbursement Transactions' : type === 'vatLedger' ? 'Input VAT Balances' : 'EWT Balances'} file, but found no valid data lines to import.`
       };
     }
 
