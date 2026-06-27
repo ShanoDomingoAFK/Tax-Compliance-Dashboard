@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  activeTab: 'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters';
-  setActiveTab: (val: 'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters') => void;
+  activeTab: 'summary' | 'sales' | 'sales-transactions' | 'sales-vat' | 'sales-ewt' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters';
+  setActiveTab: (val: 'summary' | 'sales' | 'sales-transactions' | 'sales-vat' | 'sales-ewt' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters') => void;
   onResetDatabase: () => void;
   onLoadDemoData: () => void;
   transactionsCount: number;
@@ -35,8 +35,9 @@ export default function Sidebar({
     return localStorage.getItem('sidebar_collapsed') === 'true';
   });
 
-  // Disbursement Compliance section expanded state (only relevant when expanded)
+  // Accordion expanded states
   const [purchaseExpanded, setPurchaseExpanded] = useState(true);
+  const [salesExpanded, setSalesExpanded] = useState(true);
 
   // Sync state to localStorage
   const toggleCollapse = () => {
@@ -46,6 +47,7 @@ export default function Sidebar({
   };
 
   const isPurchaseActive = activeTab === 'working' || activeTab === 'vat' || activeTab === 'ewt';
+  const isSalesActive = activeTab === 'sales-transactions' || activeTab === 'sales-vat' || activeTab === 'sales-ewt';
 
   return (
     <div
@@ -109,23 +111,76 @@ export default function Sidebar({
                 </div>
               </button>
 
-              {/* Revenue Compliance Tab */}
-              <button
-                onClick={() => setActiveTab('sales')}
-                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
-                  activeTab === 'sales'
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/10'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                }`}
-              >
-                <TrendingUp className={`w-4 h-4 shrink-0 ${activeTab === 'sales' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                <div className="overflow-hidden whitespace-nowrap">
-                  <div className="text-xs font-semibold tracking-wide">Revenue Compliance</div>
-                  <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'sales' ? 'text-blue-100' : 'text-slate-400'}`}>
-                    Revenue compliance modules
+              {/* Revenue Compliance Accordion Header */}
+              <div className="flex flex-col">
+                <button
+                  onClick={() => {
+                    setSalesExpanded(!salesExpanded);
+                    if (!isSalesActive) {
+                      setActiveTab('sales-transactions');
+                    }
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-between group ${
+                    isSalesActive
+                      ? 'bg-slate-50 text-slate-800 font-semibold'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className={`w-4 h-4 shrink-0 ${isSalesActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                    <span className="text-xs font-semibold tracking-wide">Revenue Compliance</span>
                   </div>
-                </div>
-              </button>
+                  {salesExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+
+                {/* Nested Sub-Tabs Tree for Sales */}
+                {salesExpanded && (
+                  <div className="ml-5 pl-3 border-l border-slate-100 mt-1 flex flex-col gap-1">
+                    {/* Sales Transactions */}
+                    <button
+                      onClick={() => setActiveTab('sales-transactions')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'sales-transactions'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">Sales Transactions</span>
+                    </button>
+
+                    {/* Output VAT Balances */}
+                    <button
+                      onClick={() => setActiveTab('sales-vat')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'sales-vat'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <Scale className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">Output VAT Balances</span>
+                    </button>
+
+                    {/* CWT Balances */}
+                    <button
+                      onClick={() => setActiveTab('sales-ewt')}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-2.5 group ${
+                        activeTab === 'sales-ewt'
+                          ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <Percent className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium">CWT Balances</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Disbursement Compliance Accordion Header */}
               <div className="flex flex-col">
@@ -250,17 +305,52 @@ export default function Sidebar({
                 <LayoutDashboard className="w-4 h-4" />
               </button>
 
-              {/* Revenue Compliance */}
+              {/* Sales Transactions */}
               <button
-                onClick={() => setActiveTab('sales')}
-                title="Revenue Compliance (Blank / Planned)"
-                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 ${
-                  activeTab === 'sales'
+                onClick={() => setActiveTab('sales-transactions')}
+                title="Revenue Compliance: Sales Transactions"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 relative group ${
+                  activeTab === 'sales-transactions'
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                  Sales Transactions
+                </span>
+              </button>
+
+              {/* Output VAT Balances */}
+              <button
+                onClick={() => setActiveTab('sales-vat')}
+                title="Revenue Compliance: Output VAT Balances"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 relative group ${
+                  activeTab === 'sales-vat'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Scale className="w-4 h-4" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                  Output VAT Balances
+                </span>
+              </button>
+
+              {/* CWT Balances */}
+              <button
+                onClick={() => setActiveTab('sales-ewt')}
+                title="Revenue Compliance: CWT Balances"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 relative group ${
+                  activeTab === 'sales-ewt'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Percent className="w-4 h-4" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                  CWT Balances
+                </span>
               </button>
 
               {/* Disbursement Transactions */}

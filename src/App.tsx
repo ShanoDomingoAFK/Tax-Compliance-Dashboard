@@ -5,6 +5,8 @@ import Header from './components/Header';
 import SummarySheet from './components/SummarySheet';
 import WorkingSheet from './components/WorkingSheet';
 import VatEwtSheet from './components/VatEwtSheet';
+import SalesTransactionsSheet from './components/SalesTransactionsSheet';
+import SalesVatEwtSheet from './components/SalesVatEwtSheet';
 import BirSheet from './components/BirSheet';
 import MastersSheet from './components/MastersSheet';
 import CVReviewModal from './components/CVReviewModal';
@@ -27,6 +29,9 @@ export default function App() {
     state.setTransactions([]);
     state.setVatLedger([]);
     state.setEwtLedger([]);
+    state.setSalesTransactions([]);
+    state.setOutputVatLedger([]);
+    state.setCwtLedger([]);
     state.setSupplierMaster([]);
     state.setAtcMaster([]);
     state.setVatCategories([]);
@@ -125,7 +130,7 @@ export default function App() {
       }
     ];
 
-    const mappedTxns = baseTxns.map(t => state.addTransaction(t));
+    baseTxns.forEach(t => state.addTransaction(t));
 
     // Seed matching input VAT ledgers
     const baseVatLedger: LedgerRow[] = [
@@ -146,6 +151,76 @@ export default function App() {
       { _id: 'el_5', cv: 'CV-1005', supplier: 'Supplier Y Inc.', date: '06/24/2026', amount: 150, account: 'Withholding Tax - Expanded', ref: 'CV-1005', type: 'ewt' }
     ];
     state.setEwtLedger(baseEwtLedger);
+
+    // Revenue / Sales Demo Data
+    const baseSalesTxns: any[] = [
+      {
+        _id: 'tx_sales_demo1',
+        voucherName: 'Acme Sales Corp',
+        supplier: 'Acme Sales Corp',
+        tin: '555-555-555-000',
+        cv: 'INV-1001',
+        inv: 'INV-1001',
+        date: '06/15/2026',
+        description: 'Rendered Q2 technology architectural consulting services',
+        amount: 80000,
+        vatCategory: 'S',
+        atcCode: 'WC 160',
+        manualStatus: 'unreviewed',
+        accountingTitle: 'Revenues',
+        bankAccount: 'Cash in Bank'
+      },
+      {
+        _id: 'tx_sales_demo2',
+        voucherName: 'Globex Consulting Ltd',
+        supplier: 'Globex Consulting Ltd',
+        tin: '666-666-666-000',
+        cv: 'INV-1002',
+        inv: 'INV-1002',
+        date: '06/18/2026',
+        description: 'Corporate server maintenance and setup execution',
+        amount: 120000,
+        vatCategory: 'S',
+        atcCode: 'WC 160',
+        manualStatus: 'ok',
+        accountingTitle: 'Revenues',
+        bankAccount: 'Cash in Bank'
+      },
+      {
+        _id: 'tx_sales_demo3',
+        voucherName: 'Initech Trading Corp',
+        supplier: 'Initech Trading Corp',
+        tin: '777-777-777-000',
+        cv: 'INV-1003',
+        inv: 'INV-1003',
+        date: '06/20/2026',
+        description: 'Consultancy and structural blueprint delivery',
+        amount: 45000,
+        vatCategory: 'S',
+        atcCode: 'WC 158',
+        manualStatus: 'warn',
+        accountingTitle: 'Revenues',
+        bankAccount: 'Cash in Bank'
+      }
+    ];
+
+    baseSalesTxns.forEach(t => state.addSalesTransaction(t));
+
+    // Seed matching Output VAT ledgers
+    const baseOutputVatLedger: LedgerRow[] = [
+      { _id: 'ovl_1', cv: 'INV-1001', supplier: 'Acme Sales Corp', date: '06/15/2026', amount: 9600, account: 'Output VAT', ref: 'INV-1001', type: 'vat' },
+      { _id: 'ovl_2', cv: 'INV-1002', supplier: 'Globex Consulting Ltd', date: '06/18/2026', amount: 14400, account: 'Output VAT', ref: 'INV-1002', type: 'vat' },
+      { _id: 'ovl_3', cv: 'INV-1003', supplier: 'Initech Trading Corp', date: '06/20/2026', amount: 5400, account: 'Output VAT', ref: 'INV-1003', type: 'vat' }
+    ];
+    state.setOutputVatLedger(baseOutputVatLedger);
+
+    // Seed matching CWT withholding ledgers
+    const baseCwtLedger: LedgerRow[] = [
+      { _id: 'cl_1', cv: 'INV-1001', supplier: 'Acme Sales Corp', date: '06/15/2026', amount: 1600, account: 'Creditable Withholding Tax', ref: 'INV-1001', type: 'ewt' },
+      { _id: 'cl_2', cv: 'INV-1002', supplier: 'Globex Consulting Ltd', date: '06/18/2026', amount: 2400, account: 'Creditable Withholding Tax', ref: 'INV-1002', type: 'vat' },
+      { _id: 'cl_3', cv: 'INV-1003', supplier: 'Initech Trading Corp', date: '06/20/2026', amount: 450, account: 'Creditable Withholding Tax', ref: 'INV-1003', type: 'ewt' }
+    ];
+    state.setCwtLedger(baseCwtLedger);
 
     alert('Compliance database loaded with June 2026 demo transactions and balanced ledgers.');
   }
@@ -231,19 +306,74 @@ export default function App() {
             />
           )}
 
-          {state.activeTab === 'sales' && (
-            <div className="max-w-4xl mx-auto my-12 flex flex-col items-center justify-center min-h-[460px] text-center p-12 bg-white border border-slate-100 rounded-3xl shadow-sm">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50/50 border border-blue-100/40 flex items-center justify-center mb-6 text-blue-600 animate-pulse">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">Revenue Compliance Module</h3>
-              <p className="text-xs text-slate-400 max-w-sm mt-3 leading-relaxed font-medium">
-                This workspace is reserved for customer registers, output VAT reports, sales invoices, and official receipts matching. Features are scheduled to be developed in the next iteration.
-              </p>
-              <div className="mt-6 px-4 py-1.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-widest font-mono">
-                🚀 Planned Enhancement
-              </div>
-            </div>
+          {state.activeTab === 'sales-transactions' && (
+            <SalesTransactionsSheet
+              visibleSalesTransactions={state.visibleSalesTransactions}
+              filteredSalesCvGroups={state.filteredSalesCvGroups}
+              vatCategories={state.vatCategories}
+              atcMaster={state.atcMaster}
+              supplierMaster={state.supplierMaster}
+              setSalesTransactions={state.setSalesTransactions}
+              setOutputVatLedger={state.setOutputVatLedger}
+              setCwtLedger={state.setCwtLedger}
+              setVatCategories={state.setVatCategories}
+              setAtcMaster={state.setAtcMaster}
+              setSupplierMaster={state.setSupplierMaster}
+              activeSalesBreakdown={state.activeSalesBreakdown}
+              setActiveSalesBreakdown={state.setActiveSalesBreakdown}
+              salesSort={state.salesSort}
+              setSalesSort={state.setSalesSort}
+              focusedCV={state.focusedCV}
+              setFocusedCV={state.setFocusedCV}
+              salesSearch={state.salesSearch}
+              setSalesSearch={state.setSalesSearch}
+              salesStatusFilter={state.salesStatusFilter}
+              setSalesStatusFilter={state.setSalesStatusFilter}
+              salesVarianceFilter={state.salesVarianceFilter}
+              setSalesVarianceFilter={state.setSalesVarianceFilter}
+              findSupplierByTIN={state.findSupplierByTIN}
+              addSalesTransaction={state.addSalesTransaction}
+              parseQuickBooksWorkbook={state.parseQuickBooksWorkbook}
+              importMappedRows={state.importMappedRows}
+            />
+          )}
+
+          {state.activeTab === 'sales-vat' && (
+            <SalesVatEwtSheet
+              type="vat"
+              visibleSalesTransactions={state.visibleSalesTransactions}
+              visibleLedgerRows={state.visibleOutputVatLedger}
+              ledgerReconciliation={state.outputVatLedgerReconciliation}
+              searchQuery={state.outputVatSearch}
+              setSearchQuery={state.setOutputVatSearch}
+              balanceFilter={state.outputVatBalanceFilter}
+              setBalanceFilter={state.setOutputVatBalanceFilter}
+              onClearMonthLedger={() => {
+                if (confirm(`Are you sure you want to remove all uploaded Output VAT ledger statement lines for ${activeMonthLabel}?`)) {
+                  state.setOutputVatLedger(prev => prev.filter(r => !state.recordMatchesActiveMonth(r)));
+                }
+              }}
+              activeMonthLabel={activeMonthLabel}
+            />
+          )}
+
+          {state.activeTab === 'sales-ewt' && (
+            <SalesVatEwtSheet
+              type="ewt"
+              visibleSalesTransactions={state.visibleSalesTransactions}
+              visibleLedgerRows={state.visibleCwtLedger}
+              ledgerReconciliation={state.cwtLedgerReconciliation}
+              searchQuery={state.cwtSearch}
+              setSearchQuery={state.setCwtSearch}
+              balanceFilter={state.cwtBalanceFilter}
+              setBalanceFilter={state.setCwtBalanceFilter}
+              onClearMonthLedger={() => {
+                if (confirm(`Are you sure you want to remove all uploaded CWT ledger statement lines for ${activeMonthLabel}?`)) {
+                  state.setCwtLedger(prev => prev.filter(r => !state.recordMatchesActiveMonth(r)));
+                }
+              }}
+              activeMonthLabel={activeMonthLabel}
+            />
           )}
 
           {state.activeTab === 'working' && (

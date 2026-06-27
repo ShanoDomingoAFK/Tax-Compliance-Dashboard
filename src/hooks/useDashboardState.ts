@@ -51,6 +51,10 @@ const SUPPLIER_MASTER_KEY = 'vatPurchaseSupplierMasterV1';
 const ATC_MASTER_KEY = 'vatPurchaseAtcMasterDatabaseOnlyV1';
 const VAT_CATEGORIES_KEY = 'vatPurchaseVatCategoriesMasterV1';
 
+const SALES_TX_KEY = 'vatSalesVoucherVerificationTxCleanV1';
+const OUTPUT_VAT_LEDGER_KEY = 'vatSalesOutputVatLedgerCleanV1';
+const CWT_LEDGER_KEY = 'vatSalesCwtLedgerCleanV1';
+
 export function useDashboardState() {
   // --- Master Data State ---
   const [vatCategories, setVatCategories] = useState<VATCategory[]>(() => {
@@ -120,8 +124,42 @@ export function useDashboardState() {
     return [];
   });
 
+  // --- Sales Transactions & Ledger State ---
+  const [salesTransactions, setSalesTransactions] = useState<Transaction[]>(() => {
+    try {
+      const raw = localStorage.getItem(SALES_TX_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(t => normalizeTransaction(t));
+      }
+    } catch (_) {}
+    return [];
+  });
+
+  const [outputVatLedger, setOutputVatLedger] = useState<LedgerRow[]>(() => {
+    try {
+      const raw = localStorage.getItem(OUTPUT_VAT_LEDGER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(r => normalizeLedger(r, 'vat'));
+      }
+    } catch (_) {}
+    return [];
+  });
+
+  const [cwtLedger, setCwtLedger] = useState<LedgerRow[]>(() => {
+    try {
+      const raw = localStorage.getItem(CWT_LEDGER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(r => normalizeLedger(r, 'ewt'));
+      }
+    } catch (_) {}
+    return [];
+  });
+
   // --- UI Filter & Navigation State ---
-  const [activeTab, setActiveTab] = useState<'summary' | 'sales' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'sales' | 'sales-transactions' | 'sales-vat' | 'sales-ewt' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters'>('summary');
   const [activeMasterSub, setActiveMasterSub] = useState<'vatCategories' | 'atcRates' | 'suppliers'>('vatCategories');
   const [activeYear, setActiveYear] = useState<string>(() => {
     return String(new Date().getFullYear());
@@ -152,12 +190,23 @@ export function useDashboardState() {
   const [atcSearch, setAtcSearch] = useState<string>('');
   const [supplierSearch, setSupplierSearch] = useState<string>('');
 
+  const [salesSearch, setSalesSearch] = useState<string>('');
+  const [outputVatSearch, setOutputVatSearch] = useState<string>('');
+  const [cwtSearch, setCwtSearch] = useState<string>('');
+
   // Dropdown states for balances filters
   const [vatBalanceFilter, setVatBalanceFilter] = useState<string>('');
   const [ewtBalanceFilter, setEwtBalanceFilter] = useState<string>('');
   const [workStatusFilter, setWorkStatusFilter] = useState<string>('');
   const [varianceFilter, setVarianceFilter] = useState<string>('');
   const [summaryVatTypeFilter, setSummaryVatTypeFilter] = useState<string>('');
+
+  const [salesStatusFilter, setSalesStatusFilter] = useState<string>('');
+  const [salesVarianceFilter, setSalesVarianceFilter] = useState<string>('');
+  const [salesSort, setSalesSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'cv', dir: 'asc' });
+  const [outputVatBalanceFilter, setOutputVatBalanceFilter] = useState<string>('');
+  const [cwtBalanceFilter, setCwtBalanceFilter] = useState<string>('');
+  const [activeSalesBreakdown, setActiveSalesBreakdown] = useState<'vat' | 'ewt' | null>(null);
 
   // --- Auto-Save and Local Persistence Trigger ---
   useEffect(() => {
@@ -171,6 +220,18 @@ export function useDashboardState() {
   useEffect(() => {
     localStorage.setItem(EWT_LEDGER_KEY, JSON.stringify(ewtLedger));
   }, [ewtLedger]);
+
+  useEffect(() => {
+    localStorage.setItem(SALES_TX_KEY, JSON.stringify(salesTransactions));
+  }, [salesTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem(OUTPUT_VAT_LEDGER_KEY, JSON.stringify(outputVatLedger));
+  }, [outputVatLedger]);
+
+  useEffect(() => {
+    localStorage.setItem(CWT_LEDGER_KEY, JSON.stringify(cwtLedger));
+  }, [cwtLedger]);
 
   useEffect(() => {
     localStorage.setItem(SUPPLIER_MASTER_KEY, JSON.stringify(supplierMaster));
@@ -361,6 +422,10 @@ export function useDashboardState() {
   const visibleVatLedger = useMemo(() => vatLedger.filter(recordMatchesActiveMonth), [vatLedger, activeMonth, activeYear]);
   const visibleEwtLedger = useMemo(() => ewtLedger.filter(recordMatchesActiveMonth), [ewtLedger, activeMonth, activeYear]);
 
+  const visibleSalesTransactions = useMemo(() => salesTransactions.filter(recordMatchesActiveMonth), [salesTransactions, activeMonth, activeYear]);
+  const visibleOutputVatLedger = useMemo(() => outputVatLedger.filter(recordMatchesActiveMonth), [outputVatLedger, activeMonth, activeYear]);
+  const visibleCwtLedger = useMemo(() => cwtLedger.filter(recordMatchesActiveMonth), [cwtLedger, activeMonth, activeYear]);
+
   // --- Balance Reconciliation Engine ---
   const cvGroups = useMemo(() => {
     const map = new Map<string, {
@@ -440,6 +505,85 @@ export function useDashboardState() {
       return g;
     });
   }, [visibleTransactions, visibleVatLedger, visibleEwtLedger]);
+
+  const salesCvGroups = useMemo(() => {
+    const map = new Map<string, {
+      cv: string;
+      txns: Transaction[];
+      vatRows: LedgerRow[];
+      ewtRows: LedgerRow[];
+      bookVat: number;
+      bookEwt: number;
+      bookTotal: number;
+      vatLedger: number;
+      ewtLedger: number;
+      vatDiff: number;
+      ewtDiff: number;
+      voucherNames: string;
+      dateDisplay: string;
+      accountingTitles: string;
+      bankAccounts: string;
+      suppliers: string;
+      status: { ok: number; warn: number; err: number; unreviewed: number; journal: number; adjusting: number; okPct: number; warnPct: number; errPct: number; journalPct: number; adjustingPct: number; reviewPct: number; status: string };
+    }>();
+
+    const ensure = (cv: string) => {
+      const key = cv || '(No Invoice/OR Number)';
+      if (!map.has(key)) {
+        map.set(key, {
+          cv: key,
+          txns: [],
+          vatRows: [],
+          ewtRows: [],
+          bookVat: 0,
+          bookEwt: 0,
+          bookTotal: 0,
+          vatLedger: 0,
+          ewtLedger: 0,
+          vatDiff: 0,
+          ewtDiff: 0,
+          voucherNames: '',
+          dateDisplay: '',
+          accountingTitles: '',
+          bankAccounts: '',
+          suppliers: '',
+          status: { ok: 0, warn: 0, err: 0, unreviewed: 0, journal: 0, adjusting: 0, okPct: 0, warnPct: 0, errPct: 0, journalPct: 0, adjustingPct: 0, reviewPct: 0, status: 'unreviewed' }
+        });
+      }
+      return map.get(key)!;
+    };
+
+    visibleSalesTransactions.forEach(t => ensure(t.cv).txns.push(t));
+    visibleOutputVatLedger.forEach(r => ensure(r.cv).vatRows.push(r));
+    visibleCwtLedger.forEach(r => ensure(r.cv).ewtRows.push(r));
+
+    return Array.from(map.values()).map(g => {
+      let bookVatSum = 0;
+      let bookEwtSum = 0;
+      let bookTotalSum = 0;
+      g.txns.forEach(t => {
+        bookVatSum += t.vat;
+        bookEwtSum += t.ewtAmount;
+        bookTotalSum += t.total;
+      });
+
+      g.bookVat = bookVatSum;
+      g.bookEwt = bookEwtSum;
+      g.bookTotal = bookTotalSum;
+      g.vatLedger = g.vatRows.reduce((a, r) => a + r.amount, 0);
+      g.ewtLedger = g.ewtRows.reduce((a, r) => a + r.amount, 0);
+      g.vatDiff = g.bookVat - g.vatLedger;
+      g.ewtDiff = g.bookEwt - g.ewtLedger;
+
+      g.voucherNames = compactList(g.txns.map(t => t.voucherName), '--');
+      g.dateDisplay = compactList(g.txns.map(t => t.date), '--');
+      g.accountingTitles = compactList(g.txns.map(t => t.accountingTitle), '--');
+      g.bankAccounts = compactList(g.txns.map(t => t.bankAccount), '--');
+      g.suppliers = compactList(g.txns.map(t => t.supplier || 'For verification'), '--');
+      g.status = groupStatus(g.txns);
+      return g;
+    });
+  }, [visibleSalesTransactions, visibleOutputVatLedger, visibleCwtLedger]);
 
   function groupStatus(txns: Transaction[]) {
     const total = txns.length || 1;
@@ -543,6 +687,82 @@ export function useDashboardState() {
       return cmp * dir;
     });
   }, [cvGroups, workingSearch, workStatusFilter, varianceFilter, workSort]);
+
+  // --- Sorting & Searching Revenue Compliance Tab (Invoice/OR Groups) ---
+  const filteredSalesCvGroups = useMemo(() => {
+    let result = salesCvGroups;
+    const search = salesSearch.toLowerCase().trim();
+
+    if (search) {
+      result = result.filter(g =>
+        g.cv.toLowerCase().includes(search) ||
+        g.voucherNames.toLowerCase().includes(search) ||
+        g.suppliers.toLowerCase().includes(search) ||
+        g.txns.some(t =>
+          [t.voucherName, t.supplier, t.tin, t.inv, t.date, t.description, t.accountingTitle, t.bankAccount, t.reviewNote]
+            .some(v => String(v || '').toLowerCase().includes(search))
+        ) ||
+        g.vatRows.some(r => [r.cv, r.supplier, r.date, r.amount, r.account].some(v => String(v || '').toLowerCase().includes(search))) ||
+        g.ewtRows.some(r => [r.cv, r.supplier, r.date, r.amount, r.account].some(v => String(v || '').toLowerCase().includes(search)))
+      );
+    }
+
+    if (salesStatusFilter) {
+      result = result.filter(g => g.txns.some(t => t.manualStatus === salesStatusFilter));
+    }
+
+    if (salesVarianceFilter === 'vat') {
+      result = result.filter(g => !isBalanced(g.vatDiff));
+    } else if (salesVarianceFilter === 'ewt') {
+      result = result.filter(g => !isBalanced(g.ewtDiff));
+    } else if (salesVarianceFilter === 'any') {
+      result = result.filter(g => !isBalanced(g.vatDiff) || !isBalanced(g.ewtDiff));
+    }
+
+    // Apply Sorting
+    const key = salesSort.key;
+    const dir = salesSort.dir === 'desc' ? -1 : 1;
+    const getSortVal = (g: any) => {
+      switch (key) {
+        case 'date':
+          return Math.min(...g.txns.map((t: any) => parseWorkSortDate(t.date)).concat([Number.POSITIVE_INFINITY]));
+        case 'voucher':
+          return g.voucherNames;
+        case 'vat':
+          return g.bookVat;
+        case 'ewt':
+          return g.bookEwt;
+        case 'total':
+          return g.bookTotal;
+        case 'balance':
+          return (isBalanced(g.vatDiff) && isBalanced(g.ewtDiff)) ? 0 : 1;
+        case 'verification':
+          const rankMap: Record<string, number> = { ok: 0, journal: 1, adjusting: 2, warn: 3, unreviewed: 4, err: 5 };
+          return rankMap[g.status.status] ?? 99;
+        case 'cv':
+        default:
+          return g.cv;
+      }
+    };
+
+    return [...result].sort((a, b) => {
+      const valA = getSortVal(a);
+      const valB = getSortVal(b);
+      let cmp = 0;
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        cmp = naturalCompareText(valA, valB);
+      } else {
+        cmp = Number(valA) - Number(valB);
+        if (Number.isNaN(cmp)) cmp = 0;
+      }
+      if (cmp === 0 && key !== 'date') {
+        const dateA = Math.min(...a.txns.map((t: any) => parseWorkSortDate(t.date)).concat([Number.POSITIVE_INFINITY]));
+        const dateB = Math.min(...b.txns.map((t: any) => parseWorkSortDate(t.date)).concat([Number.POSITIVE_INFINITY]));
+        cmp = dateA - dateB;
+      }
+      return cmp * dir;
+    });
+  }, [salesCvGroups, salesSearch, salesStatusFilter, salesVarianceFilter, salesSort]);
 
   // --- Filtering & Sorting Summary Tab ---
   function groupKey(t: Transaction, mode: 'supplier' | 'cv'): string {
@@ -678,6 +898,14 @@ export function useDashboardState() {
     return ledgerRowsByCV('ewt');
   }, [visibleEwtLedger, cvGroups, ewtSearch, ewtBalanceFilter]);
 
+  const outputVatLedgerReconciliation = useMemo(() => {
+    return salesLedgerRowsByCV('vat');
+  }, [visibleOutputVatLedger, salesCvGroups, outputVatSearch, outputVatBalanceFilter]);
+
+  const cwtLedgerReconciliation = useMemo(() => {
+    return salesLedgerRowsByCV('ewt');
+  }, [visibleCwtLedger, salesCvGroups, cwtSearch, cwtBalanceFilter]);
+
   function ledgerRowsByCV(type: 'vat' | 'ewt') {
     const rows = type === 'vat' ? visibleVatLedger : visibleEwtLedger;
     const search = (type === 'vat' ? vatSearch : ewtSearch).toLowerCase().trim();
@@ -713,6 +941,79 @@ export function useDashboardState() {
 
     // Merge in cvGroups totals
     cvGroups.forEach(g => {
+      const cv = g.cv;
+      if (!map.has(cv)) {
+        map.set(cv, {
+          cv,
+          rows: [],
+          ledgerAmount: 0,
+          purchaseAmount: 0,
+          diff: 0,
+          suppliers: '',
+          status: 'unbalanced'
+        });
+      }
+      const item = map.get(cv)!;
+      item.purchaseAmount = type === 'vat' ? g.bookVat : g.bookEwt;
+      item.suppliers = compactList(item.rows.map(r => r.supplier).concat(g.txns.map(t => t.voucherName || t.supplier)));
+    });
+
+    let result = Array.from(map.values()).map(item => {
+      item.diff = item.purchaseAmount - item.ledgerAmount;
+      item.status = isBalanced(item.diff) ? 'balanced' : 'unbalanced';
+      return item;
+    });
+
+    if (search) {
+      result = result.filter(item =>
+        item.cv.toLowerCase().includes(search) ||
+        item.suppliers.toLowerCase().includes(search) ||
+        item.rows.some(r => [r.cv, r.supplier, r.date, r.amount, r.account, r.ref].some(v => String(v || '').toLowerCase().includes(search)))
+      );
+    }
+
+    if (filter) {
+      result = result.filter(item => item.status === filter);
+    }
+
+    return result.sort((a, b) => naturalCompareText(a.cv, b.cv));
+  }
+
+  function salesLedgerRowsByCV(type: 'vat' | 'ewt') {
+    const rows = type === 'vat' ? visibleOutputVatLedger : visibleCwtLedger;
+    const search = (type === 'vat' ? outputVatSearch : cwtSearch).toLowerCase().trim();
+    const filter = type === 'vat' ? outputVatBalanceFilter : cwtBalanceFilter;
+
+    const map = new Map<string, {
+      cv: string;
+      rows: LedgerRow[];
+      ledgerAmount: number;
+      purchaseAmount: number;
+      diff: number;
+      suppliers: string;
+      status: 'balanced' | 'unbalanced';
+    }>();
+
+    rows.forEach(r => {
+      const cv = r.cv || '(No Invoice/OR Number)';
+      if (!map.has(cv)) {
+        map.set(cv, {
+          cv,
+          rows: [],
+          ledgerAmount: 0,
+          purchaseAmount: 0,
+          diff: 0,
+          suppliers: '',
+          status: 'unbalanced'
+        });
+      }
+      const g = map.get(cv)!;
+      g.rows.push(r);
+      g.ledgerAmount += r.amount;
+    });
+
+    // Merge in salesCvGroups totals
+    salesCvGroups.forEach(g => {
       const cv = g.cv;
       if (!map.has(cv)) {
         map.set(cv, {
@@ -912,12 +1213,10 @@ export function useDashboardState() {
     }
 
     return { type, syntheticRows: [header, ...built], count: built.length };
-  }
-
-  // --- Batch Import Handler ---
+  }  // --- Batch Import Handler ---
   function importMappedRows(
     syntheticRows: any[][],
-    type: 'book' | 'vatLedger' | 'ewtLedger' | 'vatCategoryMaster' | 'atcMaster' | 'supplierMaster',
+    type: 'book' | 'vatLedger' | 'ewtLedger' | 'vatCategoryMaster' | 'atcMaster' | 'supplierMaster' | 'salesBook' | 'outputVatLedger' | 'cwtLedger',
     replaceOnImport: boolean,
     onSuccess: (added: number, skipped: number, issues: any[]) => void,
     onFailure: (err: string) => void
@@ -949,29 +1248,29 @@ export function useDashboardState() {
 
       if (!Object.values(row).some(v => String(v ?? '').trim() !== '')) return;
 
-      if (type === 'book') {
-        const tin = pick(row, 'tin', 'supplier_tin');
+      if (type === 'book' || type === 'salesBook') {
+        const tin = pick(row, 'tin', 'supplier_tin', 'customer_tin');
         const found = findSupplierByTIN(tin);
-        const supplierFromImport = pick(row, 'registered_name', 'registered_supplier', 'supplier_registered_name', 'supplier_name', 'supplier', 'vendor');
+        const supplierFromImport = pick(row, 'registered_name', 'registered_supplier', 'supplier_registered_name', 'supplier_name', 'supplier', 'vendor', 'customer_name', 'customer', 'client');
         const supplier = found ? supplierDisplayName(found) : supplierFromImport;
-        const voucherName = pick(row, 'voucher_name', 'voucher', 'voucher_payee', 'booked_payee', 'book_payee', 'payee') || supplier;
-        const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'voucher_no', 'check_voucher');
-        const accountingTitle = pick(row, 'accounting_title', 'accounting_titles', 'account_title', 'accounting', 'gl_account', 'expense_account');
-        const bankAccount = pick(row, 'bank_account', 'bank', 'cash_bank_account', 'disbursement_bank');
+        const voucherName = pick(row, 'voucher_name', 'voucher', 'voucher_payee', 'booked_payee', 'book_payee', 'payee', 'customer_name', 'customer', 'client') || supplier;
+        const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'voucher_no', 'check_voucher', 'invoice_no', 'invoice', 'or_no', 'or_number');
+        const accountingTitle = pick(row, 'accounting_title', 'accounting_titles', 'account_title', 'accounting', 'gl_account', 'expense_account', 'revenue_account', 'sales_account');
+        const bankAccount = pick(row, 'bank_account', 'bank', 'cash_bank_account', 'disbursement_bank', 'receipt_bank', 'clearing_account');
         const rawDate = pick(row, 'date', 'payment_date', 'document_date');
         const date = normalizeImportDate(rawDate);
         const rawVatCategory = pick(row, 'vat_category', 'vat_category_code', 'vat_code', 'tax_code');
         const vatCategory = normalizeVatCodeRaw(rawVatCategory);
-        const rawAtcCode = pick(row, 'atc_code', 'atc', 'withholding_atc', 'ewt_atc');
+        const rawAtcCode = pick(row, 'atc_code', 'atc', 'withholding_atc', 'ewt_atc', 'cwt_atc', 'cwt_code');
         const atcCode = normalizeATC(rawAtcCode);
 
         let bad = false;
         if (!voucherName) {
-          issues.push({ rowNumber: xlsxRowNumber, field: 'voucher_name', message: 'Missing voucher name or supplier name.', cv, voucher: voucherName });
+          issues.push({ rowNumber: xlsxRowNumber, field: 'voucher_name', message: 'Missing voucher name, supplier name, or customer name.', cv, voucher: voucherName });
           bad = true;
         }
         if (!cv) {
-          issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing CV number.', cv, voucher: voucherName });
+          issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing CV/Invoice/OR number.', cv, voucher: voucherName });
           bad = true;
         }
         if (!rawDate) {
@@ -995,7 +1294,7 @@ export function useDashboardState() {
           return;
         }
 
-        const amount = pick(row, 'amount', 'purchase_amount', 'base_amount', 'tax_base_amount', 'vatable_amount', 'vatable', 'non_vatable_amount', 'non_vat_amount');
+        const amount = pick(row, 'amount', 'purchase_amount', 'sales_amount', 'base_amount', 'tax_base_amount', 'vatable_amount', 'vatable', 'non_vatable_amount', 'non_vat_amount');
         const total = pick(row, 'total_amount', 'total', 'gross_amount', 'gross');
 
         const baseTx = normalizeTransaction({
@@ -1004,9 +1303,9 @@ export function useDashboardState() {
           supplier,
           tin,
           cv,
-          inv: pick(row, 'invoice_no', 'invoice', 'or_no'),
+          inv: pick(row, 'invoice_no', 'invoice', 'or_no', 'or_number'),
           date,
-          description: pick(row, 'description', 'particulars', 'nature'),
+          description: pick(row, 'description', 'particulars', 'nature', 'memo'),
           accountingTitle,
           bankAccount,
           amount,
@@ -1024,23 +1323,23 @@ export function useDashboardState() {
 
         built.push(found ? applySupplierToTransaction(baseTx, found) : baseTx);
         added++;
-      } else if (type === 'vatLedger') {
-        const cv = pick(row, 'cv_no', 'cv', 'cv_number');
+      } else if (type === 'vatLedger' || type === 'outputVatLedger') {
+        const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'invoice_no', 'invoice', 'or_no', 'or_number');
         const rawAmount = pick(row, 'vat_amount', 'amount', 'balance', 'ledger_amount');
         let bad = false;
-        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing CV number.', cv, voucher: pick(row, 'voucher_name', 'supplier_name') }); bad = true; }
-        if (!rawAmount) { issues.push({rowNumber: xlsxRowNumber, field: 'vat_amount', message: 'Missing VAT balance amount.', cv, voucher: pick(row, 'voucher_name', 'supplier_name')}); bad = true; }
+        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
+        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'vat_amount', message: 'Missing VAT balance amount.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
         if (bad) { skipped++; return; }
-        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'supplier_name', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'vat'));
+        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'vat'));
         added++;
-      } else if (type === 'ewtLedger') {
-        const cv = pick(row, 'cv_no', 'cv', 'cv_number');
-        const rawAmount = pick(row, 'ewt_amount', 'amount', 'balance', 'ledger_amount');
+      } else if (type === 'ewtLedger' || type === 'cwtLedger') {
+        const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'invoice_no', 'invoice', 'or_no', 'or_number');
+        const rawAmount = pick(row, 'ewt_amount', 'cwt_amount', 'amount', 'balance', 'ledger_amount');
         let bad = false;
-        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing CV number.', cv, voucher: pick(row, 'voucher_name', 'supplier_name') }); bad = true; }
-        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'ewt_amount', message: 'Missing EWT balance amount.', cv, voucher: pick(row, 'voucher_name', 'supplier_name') }); bad = true; }
+        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
+        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'ewt_amount', message: 'Missing EWT/CWT balance amount.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
         if (bad) { skipped++; return; }
-        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'supplier_name', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'ewt'));
+        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'ewt'));
         added++;
       } else if (type === 'vatCategoryMaster') {
         const rawCode = pick(row, 'vat_category', 'vat_category_code', 'code', 'category');
@@ -1079,10 +1378,16 @@ export function useDashboardState() {
 
     if (type === 'book') {
       setTransactions(prev => replaceOnImport ? built : [...prev, ...built]);
+    } else if (type === 'salesBook') {
+      setSalesTransactions(prev => replaceOnImport ? built : [...prev, ...built]);
     } else if (type === 'vatLedger') {
       setVatLedger(prev => replaceOnImport ? built : [...prev, ...built]);
+    } else if (type === 'outputVatLedger') {
+      setOutputVatLedger(prev => replaceOnImport ? built : [...prev, ...built]);
     } else if (type === 'ewtLedger') {
       setEwtLedger(prev => replaceOnImport ? built : [...prev, ...built]);
+    } else if (type === 'cwtLedger') {
+      setCwtLedger(prev => replaceOnImport ? built : [...prev, ...built]);
     } else if (type === 'vatCategoryMaster') {
       setVatCategories(prev => {
         const merged = replaceOnImport ? built : [...prev, ...built];
@@ -1237,6 +1542,26 @@ export function useDashboardState() {
     return fresh;
   }
 
+  function deleteSalesTransaction(id: string) {
+    setSalesTransactions(prev => prev.filter(t => t._id !== id));
+  }
+
+  function updateSalesTransaction(id: string, updatedFields: Partial<Transaction>) {
+    setSalesTransactions(prev => prev.map(t => {
+      if (t._id === id) {
+        const combined = { ...t, ...updatedFields };
+        return normalizeTransaction(combined);
+      }
+      return t;
+    }));
+  }
+
+  function addSalesTransaction(row: Partial<Transaction>) {
+    const fresh = normalizeTransaction(row);
+    setSalesTransactions(prev => [...prev, fresh]);
+    return fresh;
+  }
+
   return {
     COMPANY_PROFILE,
     vatCategories,
@@ -1252,6 +1577,13 @@ export function useDashboardState() {
     ewtLedger,
     setEwtLedger,
 
+    salesTransactions,
+    setSalesTransactions,
+    outputVatLedger,
+    setOutputVatLedger,
+    cwtLedger,
+    setCwtLedger,
+
     // UI Tab Navigation
     activeTab,
     setActiveTab,
@@ -1263,6 +1595,8 @@ export function useDashboardState() {
     setActiveMonth,
     activePurchaseBreakdown,
     setActivePurchaseBreakdown,
+    activeSalesBreakdown,
+    setActiveSalesBreakdown,
 
     // Filters & Sorting
     workSort,
@@ -1282,6 +1616,9 @@ export function useDashboardState() {
     activeSummaryReview,
     setActiveSummaryReview,
 
+    salesSort,
+    setSalesSort,
+
     // Search query states
     summarySearch,
     setSummarySearch,
@@ -1298,6 +1635,13 @@ export function useDashboardState() {
     supplierSearch,
     setSupplierSearch,
 
+    salesSearch,
+    setSalesSearch,
+    outputVatSearch,
+    setOutputVatSearch,
+    cwtSearch,
+    setCwtSearch,
+
     // Dropdowns
     vatBalanceFilter,
     setVatBalanceFilter,
@@ -1310,12 +1654,25 @@ export function useDashboardState() {
     summaryVatTypeFilter,
     setSummaryVatTypeFilter,
 
+    salesStatusFilter,
+    setSalesStatusFilter,
+    salesVarianceFilter,
+    setSalesVarianceFilter,
+    outputVatBalanceFilter,
+    setOutputVatBalanceFilter,
+    cwtBalanceFilter,
+    setCwtBalanceFilter,
+
     // Month / Year list buckets
     monthBuckets,
     yearBuckets,
     visibleTransactions,
     visibleVatLedger,
     visibleEwtLedger,
+
+    visibleSalesTransactions,
+    visibleOutputVatLedger,
+    visibleCwtLedger,
 
     // Consolidated Data Maps
     cvGroups,
@@ -1324,10 +1681,18 @@ export function useDashboardState() {
     vatLedgerReconciliation,
     ewtLedgerReconciliation,
 
+    salesCvGroups,
+    filteredSalesCvGroups,
+    outputVatLedgerReconciliation,
+    cwtLedgerReconciliation,
+
     // Action creators
     deleteTransaction,
     updateTransaction,
     addTransaction,
+    deleteSalesTransaction,
+    updateSalesTransaction,
+    addSalesTransaction,
     atcLookup,
     atcRateForCode,
     atcRateText,
