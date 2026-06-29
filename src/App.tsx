@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboardState } from './hooks/useDashboardState';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -11,7 +11,9 @@ import BirSheet from './components/BirSheet';
 import MastersSheet from './components/MastersSheet';
 import CVReviewModal from './components/CVReviewModal';
 import SummaryReviewModal from './components/SummaryReviewModal';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Loader2 } from 'lucide-react';
+import LoginPage from './components/LoginPage';
+import { supabaseAuthService } from './services/supabaseAuth';
 
 import {
   demoVatCategories,
@@ -23,6 +25,31 @@ import { Transaction, LedgerRow } from './types';
 
 export default function App() {
   const state = useDashboardState();
+  const [user, setUser] = useState<any>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const sessionData = await supabaseAuthService.getCurrentSession();
+        if (sessionData.user) {
+          setUser(sessionData.user);
+        }
+      } catch (err) {
+        console.error('Error during initial auth verification:', err);
+      } finally {
+        setIsAuthChecking(false);
+      }
+    }
+    checkAuth();
+  }, []);
+
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to log out of the Tax and Compliance Dashboard?')) {
+      await supabaseAuthService.signOut();
+      setUser(null);
+    }
+  };
 
   // Handle DB reset
   function handleResetDatabase() {
@@ -256,6 +283,21 @@ export default function App() {
     return state.cvGroups.find(g => g.cv === state.focusedCV) || null;
   }, [state.focusedCV, state.cvGroups]);
 
+  if (isAuthChecking) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-slate-100 select-none">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+        <p className="text-xs font-semibold tracking-wider text-slate-400 uppercase font-mono">
+          Authenticating Ledger Session...
+        </p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onLoginSuccess={setUser} />;
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased selection:bg-blue-100">
       
@@ -266,6 +308,7 @@ export default function App() {
         onResetDatabase={handleResetDatabase}
         onLoadDemoData={handleLoadDemoData}
         transactionsCount={state.transactions.length}
+        onLogout={handleLogout}
       />
 
       {/* 2. Main Container Workspace */}

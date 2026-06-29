@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export const dbConfig = {
   // Use environment variables for connection strings
   // Replace these with actual values when connecting to Supabase or your company's production database

@@ -16,8 +16,10 @@ import {
   Server,
   RefreshCw,
   Activity,
-  AlertCircle
+  AlertCircle,
+  LogOut
 } from 'lucide-react';
+import { supabaseSyncService, SyncStatus } from '../services/supabaseSync';
 
 interface SidebarProps {
   activeTab: 'summary' | 'sales' | 'sales-transactions' | 'sales-vat' | 'sales-ewt' | 'working' | 'vat' | 'ewt' | 'bir' | 'masters';
@@ -25,6 +27,7 @@ interface SidebarProps {
   onResetDatabase: () => void;
   onLoadDemoData: () => void;
   transactionsCount: number;
+  onLogout: () => void;
 }
 
 export default function Sidebar({
@@ -32,7 +35,8 @@ export default function Sidebar({
   setActiveTab,
   onResetDatabase,
   onLoadDemoData,
-  transactionsCount
+  transactionsCount,
+  onLogout
 }: SidebarProps) {
   // Collapsible sidebar state (persisted in localStorage)
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -45,6 +49,38 @@ export default function Sidebar({
   
   // Database sync popover state
   const [isDbSyncOpen, setIsDbSyncOpen] = useState(false);
+  const [dbStatus, setDbStatus] = useState<SyncStatus>({
+    connected: false,
+    provider: 'Local Storage Cache',
+    lastSynced: null,
+    pendingChangesCount: 0,
+    error: 'Initializing connection...'
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch status dynamically
+  const refreshDbStatus = async () => {
+    setIsRefreshing(true);
+    try {
+      const status = await supabaseSyncService.getSyncStatus();
+      setDbStatus(status);
+    } catch (e: any) {
+      setDbStatus(prev => ({
+        ...prev,
+        connected: false,
+        error: e?.message || 'Database unavailable'
+      }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshDbStatus();
+    // Poll every 30 seconds for dynamic status updates
+    const interval = setInterval(refreshDbStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync state to localStorage
   const toggleCollapse = () => {
@@ -432,29 +468,40 @@ export default function Sidebar({
       {/* Database Utilities Footer */}
       <div className="p-4 border-t border-slate-100 shrink-0 flex flex-col gap-2 bg-slate-50/50 select-none relative">
         {/* DB Sync Status Button */}
-        <button
+        <div
           onClick={() => setIsDbSyncOpen(!isDbSyncOpen)}
-          className={`w-full bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl p-2 transition-all duration-200 cursor-pointer flex items-center shadow-sm relative group ${
+          className={`w-full bg-white border hover:border-blue-300 hover:bg-blue-50/30 rounded-xl p-2 transition-all duration-200 cursor-pointer flex items-center shadow-sm relative group ${
             isCollapsed ? 'justify-center' : 'justify-between'
-          }`}
+          } ${dbStatus.connected ? 'border-slate-200' : 'border-amber-250'}`}
           title="Database Sync Status"
         >
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Server className="w-4 h-4 text-emerald-500" />
+              <Server className={`w-4 h-4 ${dbStatus.connected ? 'text-emerald-500' : 'text-amber-500'}`} />
               <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 border border-white"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dbStatus.connected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 border border-white ${dbStatus.connected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               </span>
             </div>
             {!isCollapsed && (
-              <span className="text-xs font-bold text-slate-700">Connected</span>
+              <span className="text-xs font-bold text-slate-700">
+                {dbStatus.connected ? 'Connected' : 'Offline / Local'}
+              </span>
             )}
           </div>
           {!isCollapsed && (
-            <RefreshCw className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                refreshDbStatus();
+              }}
+              className="p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              title="Refresh connection status"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
+            </button>
           )}
-        </button>
+        </div>
 
         {/* DB Sync Popover */}
         {isDbSyncOpen && (
@@ -466,56 +513,80 @@ export default function Sidebar({
             <div className={`absolute bottom-full left-4 mb-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 p-4 transform transition-all ${
               isCollapsed ? 'w-64 ml-16' : 'w-64'
             }`}>
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-                <Database className="w-4 h-4 text-emerald-500" />
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Connection Status</h4>
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Database className={`w-4 h-4 ${dbStatus.connected ? 'text-emerald-500' : 'text-amber-500'}`} />
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Database Link</h4>
+                </div>
+                <button 
+                  onClick={refreshDbStatus}
+                  className="text-[10px] text-blue-600 hover:text-blue-800 font-extrabold flex items-center gap-1 uppercase tracking-wider"
+                >
+                  <RefreshCw className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
+                </button>
               </div>
               
               <div className="space-y-3">
                 <div>
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Provider</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-xs font-semibold text-slate-700">Supabase (Development)</span>
+                    <span className={`w-2 h-2 rounded-full ${dbStatus.connected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                    <span className="text-xs font-semibold text-slate-700">
+                      {dbStatus.connected ? 'Supabase Connection' : 'LocalStorage Cache'}
+                    </span>
                   </div>
                 </div>
 
                 <div>
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Last Sync</span>
-                  <span className="text-xs font-medium text-slate-600 font-mono">Just now</span>
+                  <span className="text-xs font-medium text-slate-600 font-mono">
+                    {dbStatus.lastSynced || 'Never (Using Local Offline Cache)'}
+                  </span>
                 </div>
 
                 <div>
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending Operations</span>
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                     <Activity className="w-3.5 h-3.5 text-blue-500" />
-                    None (Fully Synced)
+                    None (Local data holds original states)
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200/50 rounded-lg p-2 flex gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-amber-700 font-medium leading-tight">
-                    Running on development database infrastructure. Temporary testing mode active.
-                  </p>
-                </div>
+                {dbStatus.error && (
+                  <div className="bg-amber-50 border border-amber-200/50 rounded-lg p-2 flex gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-amber-700 font-medium leading-tight">
+                      {dbStatus.error}
+                    </p>
+                  </div>
+                )}
+                
+                {!dbStatus.error && dbStatus.connected && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 flex gap-2">
+                    <span className="text-emerald-500 text-xs font-bold font-mono">✓</span>
+                    <p className="text-[10px] text-emerald-700 font-medium leading-tight">
+                      Full bidirectional synchronization layer is configured and operational.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </>
         )}
 
-        {transactionsCount === 0 ? (
-          <button
-            onClick={onLoadDemoData}
-            title="Populate Demo Datasets"
-            className={`w-full bg-blue-50 border border-blue-100 hover:bg-blue-100/60 text-blue-600 font-bold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm ${
-              isCollapsed ? 'py-2.5 px-0' : 'py-2 px-3 text-xs'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            {!isCollapsed && "Populate Demo"}
-          </button>
-        ) : (
+        {/* Log Out button replacing Populate Demo */}
+        <button
+          onClick={onLogout}
+          title="Sign Out of Workspace"
+          className={`w-full bg-slate-800 hover:bg-red-600 text-white font-bold rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm ${
+            isCollapsed ? 'py-2.5 px-0' : 'py-2 px-3 text-xs'
+          }`}
+        >
+          <LogOut className="w-3.5 h-3.5 shrink-0" />
+          {!isCollapsed && "Log Out"}
+        </button>
+
+        {transactionsCount > 0 && (
           <button
             onClick={() => {
               if (confirm('CRITICAL WARN: This will wipe all uploaded transactions, masters overrides and ledger mappings from your offline LocalStorage browser cache. Proceed with database wipe?')) {

@@ -52,6 +52,7 @@ export interface Supplier {
   address: string;
   city: string;
   zip: string;
+  status?: string;
 }
 
 export interface ATCEntry {
