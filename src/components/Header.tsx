@@ -118,18 +118,6 @@ export default function Header({
             <Building className="w-4 h-4 text-indigo-500" />
           </div>
         </div>
-
-        {/* Database Mode status badge */}
-        <div className="flex items-center gap-2 border border-slate-150 rounded-full px-3 py-1 bg-slate-50/80 shadow-sm shrink-0">
-          <Database className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-          </span>
-          <span className="text-[9px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-            Local Cache
-          </span>
-        </div>
       </div>
 
     </div>

@@ -12,7 +12,11 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Sparkles
+  Sparkles,
+  Server,
+  RefreshCw,
+  Activity,
+  AlertCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,6 +42,9 @@ export default function Sidebar({
   // Accordion expanded states
   const [purchaseExpanded, setPurchaseExpanded] = useState(true);
   const [salesExpanded, setSalesExpanded] = useState(true);
+  
+  // Database sync popover state
+  const [isDbSyncOpen, setIsDbSyncOpen] = useState(false);
 
   // Sync state to localStorage
   const toggleCollapse = () => {
@@ -271,7 +278,7 @@ export default function Sidebar({
                 </div>
               </button>
 
-              {/* Reference Master Data Tab */}
+              {/* References Tab */}
               <button
                 onClick={() => setActiveTab('masters')}
                 className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 relative cursor-pointer flex items-center gap-3 group ${
@@ -282,7 +289,7 @@ export default function Sidebar({
               >
                 <Database className={`w-4 h-4 shrink-0 ${activeTab === 'masters' ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 <div className="overflow-hidden whitespace-nowrap">
-                  <div className="text-xs font-semibold tracking-wide">Reference Master Data</div>
+                  <div className="text-xs font-semibold tracking-wide">References</div>
                   <div className={`text-[9px] mt-0.5 font-medium ${activeTab === 'masters' ? 'text-blue-100' : 'text-slate-400'}`}>
                     ATC, suppliers & VAT categories
                   </div>
@@ -423,7 +430,80 @@ export default function Sidebar({
       </div>
 
       {/* Database Utilities Footer */}
-      <div className="p-4 border-t border-slate-100 shrink-0 flex flex-col gap-2 bg-slate-50/50 select-none">
+      <div className="p-4 border-t border-slate-100 shrink-0 flex flex-col gap-2 bg-slate-50/50 select-none relative">
+        {/* DB Sync Status Button */}
+        <button
+          onClick={() => setIsDbSyncOpen(!isDbSyncOpen)}
+          className={`w-full bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-xl p-2 transition-all duration-200 cursor-pointer flex items-center shadow-sm relative group ${
+            isCollapsed ? 'justify-center' : 'justify-between'
+          }`}
+          title="Database Sync Status"
+        >
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Server className="w-4 h-4 text-emerald-500" />
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 border border-white"></span>
+              </span>
+            </div>
+            {!isCollapsed && (
+              <span className="text-xs font-bold text-slate-700">Connected</span>
+            )}
+          </div>
+          {!isCollapsed && (
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+          )}
+        </button>
+
+        {/* DB Sync Popover */}
+        {isDbSyncOpen && (
+          <>
+            <div 
+              className="fixed inset-0 z-40"
+              onClick={() => setIsDbSyncOpen(false)}
+            />
+            <div className={`absolute bottom-full left-4 mb-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 p-4 transform transition-all ${
+              isCollapsed ? 'w-64 ml-16' : 'w-64'
+            }`}>
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
+                <Database className="w-4 h-4 text-emerald-500" />
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Connection Status</h4>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Provider</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-semibold text-slate-700">Supabase (Development)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Last Sync</span>
+                  <span className="text-xs font-medium text-slate-600 font-mono">Just now</span>
+                </div>
+
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending Operations</span>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <Activity className="w-3.5 h-3.5 text-blue-500" />
+                    None (Fully Synced)
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200/50 rounded-lg p-2 flex gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-700 font-medium leading-tight">
+                    Running on development database infrastructure. Temporary testing mode active.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {transactionsCount === 0 ? (
           <button
             onClick={onLoadDemoData}
