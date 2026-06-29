@@ -1,16 +1,16 @@
 /// <reference types="vite/client" />
 
+import { databaseConfig } from '../../config/databaseConfig';
+
 export const dbConfig = {
-  // Use environment variables for connection strings
-  // Replace these with actual values when connecting to Supabase or your company's production database
-  url: import.meta.env.VITE_DATABASE_URL || '',
-  anonKey: import.meta.env.VITE_DATABASE_ANON_KEY || '',
+  // Use centralized configuration for connection details
+  url: databaseConfig.url,
+  anonKey: databaseConfig.anonKey,
   
-  // Define current active provider to easily toggle implementations
-  // Options: 'local' (localStorage cache), 'supabase' (development test), 'production' (company DB)
-  provider: (import.meta.env.VITE_DATABASE_PROVIDER as 'local' | 'supabase' | 'production') || 'local',
+  // Define current active provider from centralized configuration
+  provider: databaseConfig.provider as 'local' | 'supabase' | 'production',
 
   // Config parameters for syncing mechanism
-  syncIntervalMs: 30000,
-  enableOfflineMode: true,
+  syncIntervalMs: databaseConfig.syncIntervalMs,
+  enableOfflineMode: databaseConfig.offlineSupportEnabled,
 };

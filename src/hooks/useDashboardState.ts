@@ -1255,8 +1255,20 @@ export function useDashboardState() {
         const supplier = found ? supplierDisplayName(found) : supplierFromImport;
         const voucherName = pick(row, 'voucher_name', 'voucher', 'voucher_payee', 'booked_payee', 'book_payee', 'payee', 'customer_name', 'customer', 'client') || supplier;
         const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'voucher_no', 'check_voucher', 'invoice_no', 'invoice', 'or_no', 'or_number');
-        const accountingTitle = pick(row, 'accounting_title', 'accounting_titles', 'account_title', 'accounting', 'gl_account', 'expense_account', 'revenue_account', 'sales_account');
-        const bankAccount = pick(row, 'bank_account', 'bank', 'cash_bank_account', 'disbursement_bank', 'receipt_bank', 'clearing_account');
+        
+        // Relaxed validation: Provide fallback defaults for missing accounting titles or bank accounts
+        const rawAccountingTitle = pick(row, 'accounting_title', 'accounting_titles', 'account_title', 'accounting', 'gl_account', 'expense_account', 'revenue_account', 'sales_account');
+        const accountingTitle = rawAccountingTitle || (type === 'salesBook' ? 'Uncategorized Revenue' : 'Uncategorized Expense');
+        if (!rawAccountingTitle) {
+          issues.push({ rowNumber: xlsxRowNumber, field: 'accounting_title', message: `No accounting title provided. Defaulted to "${accountingTitle}".`, cv, voucher: voucherName });
+        }
+
+        const rawBankAccount = pick(row, 'bank_account', 'bank', 'cash_bank_account', 'disbursement_bank', 'receipt_bank', 'clearing_account');
+        const bankAccount = rawBankAccount || 'Cash/Clearing Account';
+        if (!rawBankAccount) {
+          issues.push({ rowNumber: xlsxRowNumber, field: 'bank_account', message: 'No bank account provided. Defaulted to "Cash/Clearing Account".', cv, voucher: voucherName });
+        }
+
         const rawDate = pick(row, 'date', 'payment_date', 'document_date');
         const date = normalizeImportDate(rawDate);
         const rawVatCategory = pick(row, 'vat_category', 'vat_category_code', 'vat_code', 'tax_code');
@@ -1280,14 +1292,6 @@ export function useDashboardState() {
           issues.push({ rowNumber: xlsxRowNumber, field: 'date', message: `Invalid date "${rawDate}". Required format is MM/DD/YYYY.`, cv, voucher: voucherName });
           bad = true;
         }
-        if (!accountingTitle) {
-          issues.push({ rowNumber: xlsxRowNumber, field: 'accounting_title', message: 'Missing accounting title.', cv, voucher: voucherName });
-          bad = true;
-        }
-        if (!bankAccount) {
-          issues.push({ rowNumber: xlsxRowNumber, field: 'bank_account', message: 'Missing bank account.', cv, voucher: voucherName });
-          bad = true;
-        }
 
         if (bad) {
           skipped++;
@@ -1296,6 +1300,27 @@ export function useDashboardState() {
 
         const amount = pick(row, 'amount', 'purchase_amount', 'sales_amount', 'base_amount', 'tax_base_amount', 'vatable_amount', 'vatable', 'non_vatable_amount', 'non_vat_amount');
         const total = pick(row, 'total_amount', 'total', 'gross_amount', 'gross');
+        const parsedAmount = parseMoney(amount);
+        const parsedTotal = parseMoney(total);
+
+        // Perfect Copy Duplicate Check: skip only if there is a perfect copy already in local state
+        if (!replaceOnImport) {
+          const stateList = type === 'book' ? transactions : salesTransactions;
+          const isPerfectCopy = stateList.some(t => 
+            t.cv === cv &&
+            t.date === date &&
+            t.voucherName === voucherName &&
+            Math.abs(t.amount - parsedAmount) < 0.01 &&
+            Math.abs(t.total - parsedTotal) < 0.01 &&
+            t.accountingTitle === accountingTitle &&
+            t.bankAccount === bankAccount
+          );
+          if (isPerfectCopy) {
+            skipped++;
+            issues.push({ rowNumber: xlsxRowNumber, field: 'Duplicate Check', message: `Skipped perfect duplicate transaction (CV: ${cv}) already exists.`, cv, voucher: voucherName });
+            return;
+          }
+        }
 
         const baseTx = normalizeTransaction({
           _id: makeId('tx'),
@@ -1326,20 +1351,62 @@ export function useDashboardState() {
       } else if (type === 'vatLedger' || type === 'outputVatLedger') {
         const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'invoice_no', 'invoice', 'or_no', 'or_number');
         const rawAmount = pick(row, 'vat_amount', 'amount', 'balance', 'ledger_amount');
+        const date = pick(row, 'date', 'posting_date');
+        const supplier = pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier');
+        const parsedAmt = parseMoney(rawAmount);
+
         let bad = false;
-        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
-        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'vat_amount', message: 'Missing VAT balance amount.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
+        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: supplier }); bad = true; }
+        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'vat_amount', message: 'Missing VAT balance amount.', cv, voucher: supplier }); bad = true; }
         if (bad) { skipped++; return; }
-        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'vat'));
+
+        // Perfect Copy Duplicate Check
+        if (!replaceOnImport) {
+          const stateList = type === 'vatLedger' ? vatLedger : outputVatLedger;
+          const isPerfectCopy = stateList.some(r => 
+            r.cv === cv &&
+            r.supplier === supplier &&
+            Math.abs(r.amount - parsedAmt) < 0.01 &&
+            r.date === date
+          );
+          if (isPerfectCopy) {
+            skipped++;
+            issues.push({ rowNumber: xlsxRowNumber, field: 'Duplicate Check', message: `Skipped exact duplicate VAT ledger row (CV: ${cv}).`, cv, voucher: supplier });
+            return;
+          }
+        }
+
+        built.push(normalizeLedger({ cv, supplier, date, amount: parsedAmt, account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'vat'));
         added++;
       } else if (type === 'ewtLedger' || type === 'cwtLedger') {
         const cv = pick(row, 'cv_no', 'cv', 'cv_number', 'invoice_no', 'invoice', 'or_no', 'or_number');
         const rawAmount = pick(row, 'ewt_amount', 'cwt_amount', 'amount', 'balance', 'ledger_amount');
+        const date = pick(row, 'date', 'posting_date');
+        const supplier = pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier');
+        const parsedAmt = parseMoney(rawAmount);
+
         let bad = false;
-        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
-        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'ewt_amount', message: 'Missing EWT/CWT balance amount.', cv, voucher: pick(row, 'voucher_name', 'customer_name', 'supplier_name') }); bad = true; }
+        if (!cv) { issues.push({ rowNumber: xlsxRowNumber, field: 'cv_no', message: 'Missing Invoice/OR number.', cv, voucher: supplier }); bad = true; }
+        if (!rawAmount) { issues.push({ rowNumber: xlsxRowNumber, field: 'ewt_amount', message: 'Missing EWT/CWT balance amount.', cv, voucher: supplier }); bad = true; }
         if (bad) { skipped++; return; }
-        built.push(normalizeLedger({ cv, supplier: pick(row, 'voucher_name', 'customer_name', 'supplier_name', 'customer', 'supplier'), date: pick(row, 'date', 'posting_date'), amount: parseMoney(rawAmount), account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'ewt'));
+
+        // Perfect Copy Duplicate Check
+        if (!replaceOnImport) {
+          const stateList = type === 'ewtLedger' ? ewtLedger : cwtLedger;
+          const isPerfectCopy = stateList.some(r => 
+            r.cv === cv &&
+            r.supplier === supplier &&
+            Math.abs(r.amount - parsedAmt) < 0.01 &&
+            r.date === date
+          );
+          if (isPerfectCopy) {
+            skipped++;
+            issues.push({ rowNumber: xlsxRowNumber, field: 'Duplicate Check', message: `Skipped exact duplicate EWT/CWT ledger row (CV: ${cv}).`, cv, voucher: supplier });
+            return;
+          }
+        }
+
+        built.push(normalizeLedger({ cv, supplier, date, amount: parsedAmt, account: pick(row, 'ledger_account', 'account'), ref: pick(row, 'reference', 'ref') }, 'ewt'));
         added++;
       } else if (type === 'vatCategoryMaster') {
         const rawCode = pick(row, 'vat_category', 'vat_category_code', 'code', 'category');

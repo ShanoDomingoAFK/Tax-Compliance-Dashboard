@@ -48,6 +48,17 @@ export function normalizeImportDate(value: any): string {
   }
   const raw = String(value ?? '').trim();
   if (!raw) return '';
+
+  // Check if it is an Excel serial date code (e.g. 45234)
+  const num = Number(raw);
+  if (!Number.isNaN(num) && num > 20000 && num < 65000) {
+    // Excel leap year bug offset for dates after Feb 28, 1900 is 25569
+    const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}/${dd}/${d.getFullYear()}`;
+  }
+
   if (isStrictMMDDYYYY(raw)) return raw;
   const m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2}|\d{4})$/);
   if (!m) return '';

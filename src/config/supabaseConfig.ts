@@ -9,14 +9,16 @@
  * providers in a single location.
  */
 
+import { databaseConfig } from './databaseConfig';
+
 export const supabaseConfig = {
-  // Connection details pulled from VITE_ environment variables
-  url: import.meta.env.VITE_DATABASE_URL || '',
-  anonKey: import.meta.env.VITE_DATABASE_ANON_KEY || '',
+  // Connection details pulled from the centralized database configuration
+  url: databaseConfig.url,
+  anonKey: databaseConfig.anonKey,
   
   // Toggles synchronization behavior
-  syncIntervalMs: 30000,          // Time between background sync polls
-  offlineSupportEnabled: true,    // Toggles LocalStorage fallback and queuing
+  syncIntervalMs: databaseConfig.syncIntervalMs,          // Time between background sync polls
+  offlineSupportEnabled: databaseConfig.offlineSupportEnabled,    // Toggles LocalStorage fallback and queuing
   
   // Database table names mapped here to allow changing database schemas
   // without modifying the business logic or component files
